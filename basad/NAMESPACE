@@ -1,0 +1,11 @@
+useDynLib(basad, .registration = TRUE)
+import(RcppEigen)
+importFrom(Rcpp, evalCpp)
+importFrom(rmutil, dlaplace)
+
+export(basad,
+       print.basad,
+       predict.basad) 
+
+S3method(print, basad)
+S3method(predict, basad)

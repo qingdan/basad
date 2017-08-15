@@ -1,0 +1,12 @@
+Package: basad
+Type: Package
+Title: Bayesian variable selction with shrinking and diffussing priors
+Version: 1.0
+Date: 2017-07-25
+Author: Qingyan Xiang<qxiang@illinois.edu>, Naveen Narisetty<naveen@illinois.edu>
+Maintainer: Qingyan Xiang <qxiang@illinois.edu>
+Description: The software is a implementation of a Bayesian approach to variable selection based on a hierarchical model that places spike and slab prior distributions on the regression coefficients. The algorithm has a strong slection consistency in high dimensions.
+License: GPL-2
+Imports: Rcpp, RcppEigen, rmutil
+LinkingTo: Rcpp, RcppEigen, rmutil
+NeedsCompilation: yes
