@@ -4,9 +4,7 @@
 //  Copyright © 2017 Qingyan Xiang. All rights reserved.
 //
 #include <Rcpp.h>
-#include <iostream>
 #include <stdio.h>
-#include <cstdlib>
 #include <math.h>
 #include <RcppEigen.h>
 #include "utiliti.h"
@@ -39,198 +37,15 @@ using namespace Rcpp;
 
 
 
-extern "C"{
-  void basadG(double* X_, double* Y_, double* Z0, double* B0, double* sig_, double* pr_,
-             int* n_, int* p_, double* s0_,double* s1_, int* nburn_, int* niter_,
-             int* nsplit_, double* outZ,  double* outbeta, int *Fast ){
-
-      
-    int n=*n_, p=*p_, nburn=*nburn_, niter=*niter_;
-    double pr=*pr_, sig =*sig_;
-    
-    MatrixXd X(n,p+1);
-    VectorXd Y(n);
-    
-    int i, j;
-    
-    for (i=0;i<n;i++){
-      for (j=1;j<p+1;j++) {
-        X(i,j)=X_[j*n+i];
-      }
-      Y(i)=Y_[i];
-      X(i,0) = 1.0;
-    }
-    
-    long idum;
-    
-    int  itr, nsplit =*nsplit_,vsize = (p+1)/nsplit;
-    double temp,s0 = *s0_, s1 = *s1_, a, b;
-    
-    
-    
-    MatrixXd B(niter+nburn, p+1), Z(niter+nburn, p+1), G(p+1, p+1), COV(vsize, vsize), COVsq(vsize, vsize), tempG(vsize, p+1-vsize), COVeg(vsize, vsize), COV2(p+1, p+1), COVeg2(p+1, p+1), COVsq2(p+1, p+1);
-    
-    VectorXd tmu(p+1), T1(p+1), tempgas2(p+1), tempgas2n(n), delta(n),  prob(p+1), sigma(niter + nburn), vec1(n), vec2(p+1), T1Inver(p+1),  tempDelta(p+1);
-    
-      
-    
-    //allocation for new faster algorithm
-      
-    MatrixXd Phi(n, p + 1), diagN(n, n), tempA(n,n), D(p+1, p+1);
-    VectorXd D_diag(p+1), alpha(n), u(p+1), v(n), w(n), tempB(n);
-      
-    //MatrixXd
-      
-    //Initial Values
-
-    for(j=1;j<p+1;j++){
-      B(0,j)=B0[j-1];
-      Z(0,j)=Z0[j-1];
-    }
-      
-    B(0,0) = 0;
-    Z(0,0) = 1;
-    sigma(0) = sig;
-    for( itr = 1; itr < (niter + nburn) ; itr++ )
-        sigma(itr) = 1;
-    
-    
-    //Gibss
-      
-      
-    G = X.transpose() * X;
-    tmu = X.transpose() * Y;
-      
-    
-      
-    for( itr = 1; itr <(nburn + niter); itr++ ){
-        
-
-      sig = sigma(itr - 1);
-      
-      //updating B
-      
-        if( *Fast == 0){
-       
-      B.row(itr) = B.row(itr - 1);
-      for( j = 0; j < p+1; j++)
-        T1(j) = 1/( Z(itr-1, j) * s1 + ( 1 - Z(itr - 1, j) ) * s0 );
-
-      COV2 = G;
-      
-      for(i=0;i<p+1;i++)
-        COV2(i,i) += T1(i);
-      
-      SelfAdjointEigenSolver<MatrixXd> eigensolver2(COV2);
-      
-      if (eigensolver2.info() != Success) abort();
-      COVeg2 = eigensolver2.eigenvalues().asDiagonal();
-      for( i = 0; i < p + 1; i++ )
-        COVeg2(i,i)=1/sqrt(eigensolver2.eigenvalues()(i));
-      
-      COVsq2 = eigensolver2.eigenvectors() * COVeg2 * eigensolver2.eigenvectors().transpose();
-      for( i = 0; i < p + 1; i++ )
-        tempgas2(i) = gasdev(&idum);
-      
-      B.row(itr) = COVsq2 * COVsq2 * tmu + sqrt(sig) * COVsq2 *tempgas2;
-       
-        }
-        else{
-        
-        //a faster way to update the B
-        
-        
-        B.row(itr) = B.row(itr - 1);
-        for( j = 0; j < p+1; j++)
-            T1(j) = ( Z(itr - 1, j) * s1 + (1 - Z(itr - 1, j)) * s0 );
-        D_diag =  T1 * sig;
-
-        
-        Phi = X/sqrt(sig);
-        alpha = Y/sqrt(sig);
-
-        
-        //sample u
-        for( i = 0; i < p+1; i++ )
-            tempgas2(i) = gasdev(&idum);
-       
-        u = tempgas2.cwiseProduct( D_diag.cwiseSqrt() );
-        
-        for( i = 0; i < n; i++ )
-            delta(i) = gasdev(&idum);
-        
-
-		
-        v = (Phi * u) + delta;
-        D = D_diag.asDiagonal();
-
-        for( i = 0; i < n; i++ )
-            tempgas2n(i) = 1.00;
-        
-        diagN = tempgas2n.asDiagonal();
-        tempA = Phi * D * Phi.transpose() + diagN;
-        tempB = alpha - v;
-        
-        
-        w = tempA.colPivHouseholderQr().solve( tempB );
-		B.row(itr) = u + ( D * Phi.transpose()) * w;
-        }
-      
-  
-        //updating Z
-      Z(itr,0)=1;
-      for(i=1;i<p+1;i++){
-          
-          double s12 = sig * s1;
-          double s02 = sig * s0;
-          
-        prob(i)=pr* mydnorm(B(itr,i), (double)0, s12)/( pr* mydnorm(B(itr,i), (double)0, s12) + (1-pr)* mydnorm(B(itr,i), (double)0, s02 ));
-        Z(itr,i) = (ran1(&idum) < prob(i))? 1:0;
-      }
-        
-        //updating Sigma
-        
-      for( j = 0; j < p + 1; j++ )
-        T1(j) =  1/ ( Z(itr, j) * s1 + ( 1 - Z(itr, j) ) * s0 );
-      
-      vec1 = Y - X * B.row(itr).transpose();
-      a = P1 + n * 0.5 + p * 0.5;
-      b = P2 + 0.5 * vec1.dot(vec1) + 0.5 * B.row(itr) * T1.asDiagonal() * B.row(itr).transpose();
-        
- 
-      sig  = 1/gamdev(a, b, &idum);
-        
-      sigma(itr) = sig;
-         
-    
-      if( itr % 500 == 0)
-        cout << itr << endl;
-        
-    }
-    
-
-      
-      for( i=0;i<(nburn+niter);i++){
-          for( j=0;j<(p+1);j++){
-              outZ[(nburn+niter)*j+i]=(double)Z(i,j);
-              outbeta[(nburn+niter)*j+i]=B(i,j);
-          }
-      }
-      
-      
-  }
-}
-
-
-//withPr prior
+//basad main function with guassian prior
 extern "C"{
     void basadGPr(double* X_, double* Y_, double* Z0, double* B0, double* sig_, double* pr_,
                int* n_, int* p_, double* s0_, double* s1_, int* nburn_, int* niter_,
-               int* nsplit_, double* outZ, double* outbeta, double* outPr, int *Fast ){
+               int* nsplit_, double* outZ, double* outbeta, double* outPr, int *Fast, int *PrFlag ){
         
         
         int n=*n_, p=*p_, nburn=*nburn_, niter=*niter_;
-        double pr=*pr_, sig =*sig_, prTemp;
+        double pr=*pr_, sig =*sig_, pr0 = pr, prTemp;
         
         MatrixXd X(n,p+1);
         VectorXd Y(n);
@@ -263,7 +78,7 @@ extern "C"{
         
         //allocation for new faster algorithm
         
-        MatrixXd Phi(n, p + 1), diagN(n, n), tempA(n,n), D(p+1, p+1);
+        MatrixXd Phi(n, p + 1), tempMat(p+1, n), tempA(n,n), D(p+1, p+1);
         VectorXd D_diag(p+1), alpha(n), u(p+1), v(n), w(n), tempB(n);
         
         //MatrixXd
@@ -279,9 +94,10 @@ extern "C"{
         Z(0,0) = 1;
         sigma(0) = sig;
         prV(0) = pr;
-        for( itr = 1; itr < (niter + nburn) ; itr++ )
+        for( itr = 1; itr < (niter + nburn) ; itr++ ){
             sigma(itr) = 1;
-        
+            prV(itr) = pr;
+        }
         
         //Gibss
         
@@ -294,8 +110,10 @@ extern "C"{
             
             
             sig = sigma(itr - 1);
-            prTemp = prV(itr - 1);
-            
+            if( *PrFlag == 1)
+                prTemp = prV(itr - 1);
+            else
+                prTemp = pr0;
             //updating B
             
             if( *Fast == 0){
@@ -340,28 +158,30 @@ extern "C"{
                 
                 //sample u
                 for( i = 0; i < p+1; i++ )
-                    tempgas2(i) = gasdev(&idum);
+                    u(i) = gasdev(&idum) * sqrt( D_diag(i) );
                 
-                u = tempgas2.cwiseProduct( D_diag.cwiseSqrt() );
                 
                 for( i = 0; i < n; i++ )
                     delta(i) = gasdev(&idum);
                 
                 
                 
-                v = (Phi * u) + delta;
+                v = delta;
+                v.noalias() += Phi * u;
                 D = D_diag.asDiagonal();
                 
                 for( i = 0; i < n; i++ )
                     tempgas2n(i) = 1.00;
                 
-                diagN = tempgas2n.asDiagonal();
-                tempA = Phi * D * Phi.transpose() + diagN;
+                tempMat.noalias() = D * Phi.transpose();
+                tempA = tempgas2n.asDiagonal();
+                tempA.noalias() += Phi * tempMat;
                 tempB = alpha - v;
                 
                 
-                w = tempA.colPivHouseholderQr().solve( tempB );
-                B.row(itr) = u + ( D * Phi.transpose()) * w;
+                w = tempA.ldlt().solve( tempB );
+                B.row(itr) = u;
+                B.row(itr).noalias() += tempMat * w;
             }
             
             
@@ -391,10 +211,15 @@ extern "C"{
             sigma(itr) = sig;
             
             // updating pr
-            double a1 = beta1 + Z.row(itr).sum();
-            double b1 = beta2 + p + 1 - Z.row(itr).sum();
-            prV(itr) = betadev(a1, b1, &idum);
+            if( *PrFlag == 1){
+                
+                double a1 = beta1 + Z.row(itr).sum();
+                double b1 = beta2 + p + 1 - Z.row(itr).sum();
+                prV(itr) = betadev(a1, b1, &idum);
             
+                cout << "Pr" << endl;
+                
+            }
             if( itr % 500 == 0)
                 cout << itr << endl;
             
@@ -432,7 +257,7 @@ RcppExport SEXP basadFunctionG(SEXP X, SEXP Y, SEXP Z0, SEXP B0, SEXP sig, SEXP 
   int nniter = Rcpp::as<int>(niter);
   int nnsplit = Rcpp::as<int>(nsplit);
   int fast = Rcpp::as<int>(Fast);
-  int i,j;
+  int i,j, PrFlag;
   
   
   
@@ -466,14 +291,15 @@ RcppExport SEXP basadFunctionG(SEXP X, SEXP Y, SEXP Z0, SEXP B0, SEXP sig, SEXP 
 	double *outPr = new double[  (nnburn + nniter) ];
   
 
-    if( ppr > 0  ){
-  //The gibbs sampling function
-      basadG( XXX, YYY, ZZZ, BBB, &sighat, &ppr, &nn, &pp, &ss0, &ss1, &nnburn, &nniter, &nnsplit, outZZ, outBB, &fast);
+    if( ppr < 0  ){
+        PrFlag = 1;
+        ppr = 0.1;
     }
-  else{
-      ppr = 0.5;
-      basadGPr( XXX, YYY, ZZZ, BBB, &sighat, &ppr, &nn, &pp, &ss0, &ss1, &nnburn, &nniter, &nnsplit, outZZ, outBB, outPr, &fast);
-  }
+    else
+        PrFlag = 0;
+
+    basadGPr( XXX, YYY, ZZZ, BBB, &sighat, &ppr, &nn, &pp, &ss0, &ss1, &nnburn, &nniter, &nnsplit, outZZ, outBB, outPr, &fast, &PrFlag);
+  
   
     int nnrow;
     nnrow = nnburn + nniter;
