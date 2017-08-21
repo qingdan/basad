@@ -4,7 +4,6 @@
 //  Copyright © 2017 Qingyan Xiang. All rights reserved.
 //
 #include <Rcpp.h>
-#include <stdio.h>
 #include <math.h>
 #include <RcppEigen.h>
 #include "utiliti.h"
@@ -51,7 +50,6 @@ extern "C"{
         VectorXd Y(n);
         VectorXd prV(niter + nburn);
         
-        cout << "prior probability that a coefficient is nonzero is estimated by Gibbs sampling" << endl;
         
         int i, j;
         
@@ -130,15 +128,16 @@ extern "C"{
                 SelfAdjointEigenSolver<MatrixXd> eigensolver2(COV2);
                 
                 if (eigensolver2.info() != Success) abort();
-                COVeg2 = eigensolver2.eigenvalues().asDiagonal();
+                    COVeg2 = eigensolver2.eigenvalues().asDiagonal();
                 for( i = 0; i < p + 1; i++ )
                     COVeg2(i,i)=1/sqrt(eigensolver2.eigenvalues()(i));
                 
-                COVsq2 = eigensolver2.eigenvectors() * COVeg2 * eigensolver2.eigenvectors().transpose();
+                COVsq2.noalias() = eigensolver2.eigenvectors() * COVeg2 * eigensolver2.eigenvectors().transpose();
                 for( i = 0; i < p + 1; i++ )
                     tempgas2(i) = gasdev(&idum);
                 
-                B.row(itr) = COVsq2 * COVsq2 * tmu + sqrt(sig) * COVsq2 *tempgas2;
+                B.row(itr).noalias() = COVsq2 * COVsq2 * tmu;
+                B.row(itr).noalias() +=sqrt(sig) * COVsq2 *tempgas2;
                 
             }
             else{
@@ -149,9 +148,8 @@ extern "C"{
                 B.row(itr) = B.row(itr - 1);
                 for( j = 0; j < p+1; j++)
                     T1(j) = ( Z(itr - 1, j) * s1 + (1 - Z(itr - 1, j)) * s0 );
+                
                 D_diag =  T1 * sig;
-                
-                
                 Phi = X/sqrt(sig);
                 alpha = Y/sqrt(sig);
                 
@@ -216,8 +214,6 @@ extern "C"{
                 double a1 = beta1 + Z.row(itr).sum();
                 double b1 = beta2 + p + 1 - Z.row(itr).sum();
                 prV(itr) = betadev(a1, b1, &idum);
-            
-                cout << "Pr" << endl;
                 
             }
             if( itr % 500 == 0)
@@ -292,6 +288,7 @@ RcppExport SEXP basadFunctionG(SEXP X, SEXP Y, SEXP Z0, SEXP B0, SEXP sig, SEXP 
   
 
     if( ppr < 0  ){
+        cout << "prior probability that a coefficient is nonzero is estimated by Gibbs sampling" << endl;
         PrFlag = 1;
         ppr = 0.1;
     }

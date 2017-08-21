@@ -4,11 +4,6 @@
 //  Copyright © 2017 Qingyan Xiang. All rights reserved.
 //
 #include <Rcpp.h>
-#include <iostream>
-#include <stdio.h>
-#include <fstream>
-#include <cstdlib>
-#include <cstdio>
 #include <math.h>
 #include <RcppEigen.h>
 #include "utiliti.h"

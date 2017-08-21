@@ -11,6 +11,7 @@ basad <- function(x = NULL,
                   nburn = 500,
                   niter = 3000,
                   Fast = TRUE,
+                  verbose = FALSE,
                   prior.dist = "Gauss",
                   select.cri = "median"){
 
@@ -174,6 +175,7 @@ catList <- list(
     
 )
 
+if( verbose ){
 cat("-----------------------------", "\n")
 cat("Sample size                    :", catList[[1]], "\n" )
 cat("No. predictors                 :", catList[[2]], "\n" )
@@ -185,7 +187,7 @@ cat("\n\n")
 cat("---> Top variables:\n")
 print(round(basad.sum, 3))
 cat("-----------------------------", "\n")
-
+}
 
 ###---------------------------
 ###
