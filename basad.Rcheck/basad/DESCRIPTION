@@ -10,3 +10,4 @@ License: GPL-3
 Imports: Rcpp, RcppEigen, rmutil
 LinkingTo: Rcpp, RcppEigen
 NeedsCompilation: yes
+Built: R 3.3.3; x86_64-apple-darwin16.4.0; 2017-08-28 08:29:05 UTC; unix

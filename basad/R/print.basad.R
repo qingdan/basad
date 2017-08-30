@@ -1,3 +1,10 @@
+###
+###
+###The default print method for the basad
+###
+###
+
+
 print.basad <- function(x, ...)
 {
 

@@ -1,0 +1,12 @@
+* installing *source* package 'basad' ...
+** libs
+make: Nothing to be done for `all'.
+make: `symbols.rds' is up to date.
+installing to /Users/Qingyan/Documents/rpackage/basadGit/basad.Rcheck/basad/libs
+** R
+** preparing package for lazy loading
+** help
+*** installing help indices
+** building package indices
+** testing if installed package can be loaded
+* DONE (basad)

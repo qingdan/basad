@@ -1,8 +1,8 @@
-
-
-
-
-
+###
+###
+###Main fucntion of basad
+###
+###
 
 basad <- function(x = NULL,
                   y = NULL,
@@ -15,8 +15,8 @@ basad <- function(x = NULL,
                   prior.dist = "Gauss",
                   select.cri = "median"){
 
-
-	if (is.null(y) | is.null(x)) 
+    #######Check the data
+	if (is.null(y) | is.null(x))
 		stop("x and or y is missing")
 	
 	Y <- y
@@ -32,7 +32,9 @@ basad <- function(x = NULL,
     Y <- data.matrix(Y)
 				  
     p = dim(X)[2]-1;  n = dim(X)[1]
-    
+
+
+    ########calculate the prior probability of q
     
     if( K > 0 ){
         choicep <-function(x){
@@ -46,7 +48,9 @@ basad <- function(x = NULL,
         pr = -1
     
     pr0 = 0.1
-
+    
+    
+    ##########calculate the ols estimate of sig
     Bols = sapply(seq(1:(p+1)), function(j) summary(lm(Y~ 0+X[,j]))$coef[,1])
     B0 = Bols
     if(p > n) {m = round(p - (n/2))}
@@ -61,6 +65,7 @@ basad <- function(x = NULL,
 	cat("Algorithms running:",  "\n" )
 
 
+    #######excute the algorithm
     if( prior.dist == "t"){
         
         s0 = 1/n
@@ -117,6 +122,8 @@ basad <- function(x = NULL,
 	
     modelIdx <- c()
     
+    
+    ####return the results if selection criteria is BIC
     if( select.cri == "BIC" ){
 
         Zsort <- sort.int(Z, decreasing = TRUE, index.return = TRUE )

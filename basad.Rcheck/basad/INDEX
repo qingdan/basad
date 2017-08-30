@@ -1,0 +1,4 @@
+basad                   bayesian variable selection with shrinking and
+                        diffusing priors
+predict.basad           basad prediction
+print.basad             Print Summary Output of Analysis

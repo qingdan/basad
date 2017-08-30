@@ -1,9 +1,15 @@
+###
+###
+###The default predict method for the basad
+###
+###
+
 predict.basad <- function(object, testx, ...)
 {
     
     
 
-#### Check the testData
+    #### Check the testData
 	if (missing(testx)) stop("testing data missing ...")
     
     
@@ -24,7 +30,7 @@ predict.basad <- function(object, testx, ...)
     
     
     testx = cbind( rep(1, nrow(testx)), testx )
-####Make the prediction
+     ####Make the prediction
 
     newB <- numeric( object$p )
     newB[object$modelIdx] <- object$B[object$modelIdx]

@@ -3,8 +3,10 @@
 //  Created by Qingyan Xiang on 4/19/17.
 //  Copyright © 2017 Qingyan Xiang. All rights reserved.
 //
-#include <Rcpp.h>
+
+
 #include <math.h>
+#include <Rcpp.h>
 #include <RcppEigen.h>
 #include "utiliti.h"
 
