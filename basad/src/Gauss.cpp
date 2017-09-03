@@ -52,8 +52,7 @@ extern "C"{
         VectorXd Y(n);
         VectorXd prV(niter + nburn);
         
-        
-        int i, j;
+        int i, j, k, tempZ, sizecheck = 0, tempZnew;
         
         for (i=0;i<n;i++){
             for (j=1;j<p+1;j++){
@@ -66,20 +65,16 @@ extern "C"{
         long idum = -time(0);
         
         int size, itr, s, nsplit =*nsplit_, vsize = (p+1)/nsplit, remsizeflag = (p+1)%nsplit, remsize=remsizeflag>0?remsizeflag:1;
-
-        double s0 = *s0_, s1 = *s1_, a, b;
-        
+        double temp, temp2, s0 = *s0_, s1 = *s1_, a, b;
         
         
         MatrixXd B(niter+nburn, p+1), Z(niter+nburn, p+1), G(p+1, p+1), COV(vsize, vsize), COVsq(vsize, vsize), tempG(vsize, p+1-vsize), COVeg(vsize, vsize), COV2(p+1, p+1), COVeg2(p+1, p+1), COVsq2(p+1, p+1), remCOV(remsize, remsize), remCOVeg(remsize, remsize), remCOVsq(remsize, remsize), remtempG(remsize, nsplit * vsize);
         
         VectorXd tmu(p+1), T1(p+1), tempgas2(p+1), tempgas(vsize), tempgas2n(n), delta(n),  prob(p+1), sigma(niter + nburn), vec1(n), vec2(p+1), T1Inver(p+1),  tempDelta(p+1),
-            tempB(vsize), tempB2(p+1-vsize), remtempB2(nsplit * vsize), remtempgas(remsize), remtempB(remsize);
-        
+        tempB(vsize), tempB2(p+1-vsize), remtempB2(nsplit * vsize), remtempgas(remsize), remtempB(remsize);
         
         
         //allocation for new faster algorithm
-        
         MatrixXd Phi(n, p + 1), tempMat(p+1, n), equaA(n,n), D(p+1, p+1);
         VectorXd D_diag(p+1), alpha(n), u(p+1), v(n), w(n), equaB(n);
         
@@ -95,7 +90,7 @@ extern "C"{
         B(0,0) = 0;
         Z(0,0) = 1;
         sigma(0) = sig;
-        prV(0) = pr;
+        
         for( itr = 1; itr < (niter + nburn) ; itr++ ){
             sigma(itr) = 1;
             prV(itr) = pr;
@@ -110,12 +105,14 @@ extern "C"{
         
         for( itr = 1; itr <(nburn + niter); itr++ ){
             
-            
             sig = sigma(itr - 1);
             if( *PrFlag == 1)
                 prTemp = prV(itr - 1);
             else
                 prTemp = pr0;
+            
+            
+            
             //updating B
             
             if( *Fast == 0){
@@ -123,7 +120,6 @@ extern "C"{
                 B.row(itr) = B.row(itr - 1);
                 for( j = 0; j < p+1; j++)
                     T1(j) = 1/( Z(itr-1, j) * s1 + ( 1 - Z(itr - 1, j) ) * s0 );
-                
                 
                 if(nsplit>1)
                 {
@@ -203,6 +199,7 @@ extern "C"{
                 }//end if
                 else{
                     
+                    
                     COV2 = G;
                     
                     for(i=0;i<p+1;i++)
@@ -215,14 +212,13 @@ extern "C"{
                     for( i = 0; i < p + 1; i++ )
                         COVeg2(i,i)=1/sqrt(eigensolver2.eigenvalues()(i));
                     
-                    COVsq2.noalias() = eigensolver2.eigenvectors() * COVeg2 * eigensolver2.eigenvectors().transpose();
+                    COVsq2 = eigensolver2.eigenvectors() * COVeg2 * eigensolver2.eigenvectors().transpose();
                     for( i = 0; i < p + 1; i++ )
                         tempgas2(i) = gasdev(&idum);
                     
-                    B.row(itr).noalias() = COVsq2 * COVsq2 * tmu;
-                    B.row(itr).noalias() +=sqrt(sig) * COVsq2 *tempgas2;
+                    B.row(itr) = COVsq2 * COVsq2 * tmu + sqrt(sig) * COVsq2 *tempgas2;
                 }
-            } // end of noun Bhattchary's algorithm
+            }
             else{
                 
                 //a faster way to update the B
@@ -291,15 +287,14 @@ extern "C"{
             sigma(itr) = sig;
             
             // updating pr
+            
             if( *PrFlag == 1){
-                
                 double a1 = beta1 + Z.row(itr).sum();
                 double b1 = beta2 + p + 1 - Z.row(itr).sum();
                 prV(itr) = betadev(a1, b1, &idum);
-                
             }
             if( itr % 500 == 0)
-                Rprintf( "%d\n", itr );
+                printf("%d\n", itr);
             
         }
         
