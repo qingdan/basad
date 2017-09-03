@@ -65,21 +65,23 @@ extern "C"{
         
         long idum = -time(0);
         
-        int itr, nsplit =*nsplit_,vsize = (p+1)/nsplit;
+        int size, itr, s, nsplit =*nsplit_, vsize = (p+1)/nsplit, remsizeflag = (p+1)%nsplit, remsize=remsizeflag>0?remsizeflag:1;
+
         double s0 = *s0_, s1 = *s1_, a, b;
         
         
         
-        MatrixXd B(niter+nburn, p+1), Z(niter+nburn, p+1), G(p+1, p+1), COV(vsize, vsize), COVsq(vsize, vsize), tempG(vsize, p+1-vsize), COVeg(vsize, vsize), COV2(p+1, p+1), COVeg2(p+1, p+1), COVsq2(p+1, p+1);
+        MatrixXd B(niter+nburn, p+1), Z(niter+nburn, p+1), G(p+1, p+1), COV(vsize, vsize), COVsq(vsize, vsize), tempG(vsize, p+1-vsize), COVeg(vsize, vsize), COV2(p+1, p+1), COVeg2(p+1, p+1), COVsq2(p+1, p+1), remCOV(remsize, remsize), remCOVeg(remsize, remsize), remCOVsq(remsize, remsize), remtempG(remsize, nsplit * vsize);
         
-        VectorXd tmu(p+1), T1(p+1), tempgas2(p+1), tempgas2n(n), delta(n),  prob(p+1), sigma(niter + nburn), vec1(n), vec2(p+1), T1Inver(p+1),  tempDelta(p+1);
+        VectorXd tmu(p+1), T1(p+1), tempgas2(p+1), tempgas(vsize), tempgas2n(n), delta(n),  prob(p+1), sigma(niter + nburn), vec1(n), vec2(p+1), T1Inver(p+1),  tempDelta(p+1),
+            tempB(vsize), tempB2(p+1-vsize), remtempB2(nsplit * vsize), remtempgas(remsize), remtempB(remsize);
         
         
         
         //allocation for new faster algorithm
         
-        MatrixXd Phi(n, p + 1), tempMat(p+1, n), tempA(n,n), D(p+1, p+1);
-        VectorXd D_diag(p+1), alpha(n), u(p+1), v(n), w(n), tempB(n);
+        MatrixXd Phi(n, p + 1), tempMat(p+1, n), equaA(n,n), D(p+1, p+1);
+        VectorXd D_diag(p+1), alpha(n), u(p+1), v(n), w(n), equaB(n);
         
         //MatrixXd
         
@@ -122,26 +124,105 @@ extern "C"{
                 for( j = 0; j < p+1; j++)
                     T1(j) = 1/( Z(itr-1, j) * s1 + ( 1 - Z(itr - 1, j) ) * s0 );
                 
-                COV2 = G;
                 
-                for(i=0;i<p+1;i++)
-                    COV2(i,i) += T1(i);
-                
-                SelfAdjointEigenSolver<MatrixXd> eigensolver2(COV2);
-                
-                if (eigensolver2.info() != Success) abort();
+                if(nsplit>1)
+                {
+                    //cout<<"22"<<endl;
+                    for(s=1;s<(nsplit+1);s++){
+                        //cout<<"s: "<<s<<endl;
+                        //for(i=0;i<vsize;i++) svec(i)=(s-1)*vsize +i;
+                        
+                        COV=G.block((s-1)*vsize,(s-1)*vsize,vsize,vsize);
+                        
+                        for(i=0;i<vsize;i++) COV(i,i)+=T1(i+(s-1)*vsize);
+                        SelfAdjointEigenSolver<MatrixXd> eigensolver(COV);
+                        
+                        if (eigensolver.info() != Success) abort();
+                        COVeg=eigensolver.eigenvalues().asDiagonal();
+                        
+                        for(i=0;i<vsize;i++) {
+                            COVeg(i,i)=1/sqrt(eigensolver.eigenvalues()(i));
+                        }
+                        
+                        COVsq = eigensolver.eigenvectors() * COVeg * eigensolver.eigenvectors().transpose();
+                        //B[svec] = COVsq * (COVsq * (tmu[svec] - G[svec, -svec] * B[-svec]) + rnorm(vsize))
+                        
+                        tempG.block(0,0,vsize,(s-1)*vsize)=G.block((s-1)*vsize,0,vsize,(s-1)*vsize);
+                        
+                        tempG.block(0,(s-1)*vsize,vsize,p+1-s*vsize)=G.block((s-1)*vsize,s*vsize,vsize,p+1-s*vsize);
+                        
+                        tempB2.head((s-1)*vsize)=B.row(itr).head((s-1)*vsize);
+                        
+                        tempB2.tail(p+1-s*vsize)=B.row(itr).tail(p+1-s*vsize);
+                        
+                        for(i=0;i<vsize;i++)
+                            tempgas(i)=gasdev(&idum);
+                        
+                        tempB=COVsq * (COVsq * (tmu.segment((s-1)*vsize,vsize) - tempG * tempB2)+ sqrt(sig) * tempgas );
+                        
+                        for(i=0;i<vsize;i++) {
+                            B(itr,(s-1)*vsize +i)= tempB(i);
+                        }
+                        
+                        
+                    } //cout<<"33 "<<endl;
+                    if(remsizeflag>0){
+                        
+                        //cout<<"44 "<<endl;
+                        //for(i=0;i<vsize;i++) svec(i)=(s-1)*vsize +i;
+                        
+                        remCOV=G.block(nsplit*vsize,nsplit*vsize,remsize,remsize);
+                        
+                        for(i=0;i<remsize;i++)
+                            remCOV(i,i)+=T1(i+nsplit*vsize);
+                        
+                        SelfAdjointEigenSolver<MatrixXd> eigensolver(remCOV);
+                        
+                        if (eigensolver.info() != Success) abort();
+                        
+                        remCOVeg = eigensolver.eigenvalues().asDiagonal();
+                        
+                        for(i=0;i<remsize;i++){
+                            remCOVeg(i,i)=1/sqrt(eigensolver.eigenvalues()(i));
+                        }
+                        
+                        remCOVsq = eigensolver.eigenvectors() * remCOVeg * eigensolver.eigenvectors().transpose();
+                        
+                        remtempG.block(0,0,remsize,nsplit*vsize)=G.block(nsplit*vsize,0,remsize,nsplit*vsize);//tempG=G[svec,-svec]
+                        
+                        remtempB2.head(nsplit*vsize)=B.row(itr).head(nsplit*vsize);//tempB2=B[-svec]
+                        
+                        for(i=0;i<remsize;i++)
+                            remtempgas(i)=gasdev(&idum);
+                        
+                        remtempB=remCOVsq * (remCOVsq * (tmu.tail(remsize) - remtempG * remtempB2) +  sqrt(sig) * remtempgas);
+                        for(i=0;i<remsize;i++) {
+                            B(itr,nsplit*vsize +i)= remtempB(i);
+                        }
+                    } // end for the remaining part if remsize>0
+                }//end if
+                else{
+                    
+                    COV2 = G;
+                    
+                    for(i=0;i<p+1;i++)
+                        COV2(i,i) += T1(i);
+                    
+                    SelfAdjointEigenSolver<MatrixXd> eigensolver2(COV2);
+                    
+                    if (eigensolver2.info() != Success) abort();
                     COVeg2 = eigensolver2.eigenvalues().asDiagonal();
-                for( i = 0; i < p + 1; i++ )
-                    COVeg2(i,i)=1/sqrt(eigensolver2.eigenvalues()(i));
-                
-                COVsq2.noalias() = eigensolver2.eigenvectors() * COVeg2 * eigensolver2.eigenvectors().transpose();
-                for( i = 0; i < p + 1; i++ )
-                    tempgas2(i) = gasdev(&idum);
-                
-                B.row(itr).noalias() = COVsq2 * COVsq2 * tmu;
-                B.row(itr).noalias() +=sqrt(sig) * COVsq2 *tempgas2;
-                
-            }
+                    for( i = 0; i < p + 1; i++ )
+                        COVeg2(i,i)=1/sqrt(eigensolver2.eigenvalues()(i));
+                    
+                    COVsq2.noalias() = eigensolver2.eigenvectors() * COVeg2 * eigensolver2.eigenvectors().transpose();
+                    for( i = 0; i < p + 1; i++ )
+                        tempgas2(i) = gasdev(&idum);
+                    
+                    B.row(itr).noalias() = COVsq2 * COVsq2 * tmu;
+                    B.row(itr).noalias() +=sqrt(sig) * COVsq2 *tempgas2;
+                }
+            } // end of noun Bhattchary's algorithm
             else{
                 
                 //a faster way to update the B
@@ -165,7 +246,6 @@ extern "C"{
                     delta(i) = gasdev(&idum);
                 
                 
-                
                 v = delta;
                 v.noalias() += Phi * u;
                 D = D_diag.asDiagonal();
@@ -174,12 +254,12 @@ extern "C"{
                     tempgas2n(i) = 1.00;
                 
                 tempMat.noalias() = D * Phi.transpose();
-                tempA = tempgas2n.asDiagonal();
-                tempA.noalias() += Phi * tempMat;
-                tempB = alpha - v;
+                equaA = tempgas2n.asDiagonal();
+                equaA.noalias() += Phi * tempMat;
+                equaB = alpha - v;
                 
                 
-                w = tempA.ldlt().solve( tempB );
+                w = equaA.ldlt().solve( equaB );
                 B.row(itr) = u;
                 B.row(itr).noalias() += tempMat * w;
             }
@@ -219,7 +299,7 @@ extern "C"{
                 
             }
             if( itr % 500 == 0)
-                cout << itr << endl;
+                Rprintf( "%d\n", itr );
             
         }
         
@@ -290,7 +370,7 @@ RcppExport SEXP basadFunctionG(SEXP X, SEXP Y, SEXP Z0, SEXP B0, SEXP sig, SEXP 
   
 
     if( ppr < 0  ){
-        cout << "prior probability that a coefficient is nonzero is estimated by Gibbs sampling" << endl;
+        Rprintf( "prior probability that a coefficient is nonzero is estimated by Gibbs sampling\n" );
         PrFlag = 1;
         ppr = 0.1;
     }
@@ -345,7 +425,8 @@ RcppExport SEXP basadFunctionG(SEXP X, SEXP Y, SEXP Z0, SEXP B0, SEXP sig, SEXP 
   
   return List::create(
     Named("B") = realOutB,
-    Named("Z") = realOutZ
+    Named("Z") = realOutZ,
+    Named("Pr") = realOutPr
   );
    
   
