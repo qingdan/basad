@@ -12,6 +12,7 @@ basad <- function(x = NULL,
                   niter = 3000,
                   Fast = TRUE,
                   verbose = FALSE,
+                  nsplit = 10,
                   prior.dist = "Gauss",
                   select.cri = "median"){
 
@@ -21,11 +22,11 @@ basad <- function(x = NULL,
 	
 	Y <- y
 	X <- x
-	X <- cbind( rep(1, nrow(X)), X)
-	beta.names <- colnames(X)
-	if (length(unique(beta.names)) != ncol(X)) {
+    X <- cbind( rep(1, nrow(X)), X)
+    beta.names <- colnames(X)
+    if (length(unique(beta.names)) != ncol(X)) {
 		colnames(X) <- beta.names <- paste("x.", 1:ncol(X), sep = "")
-	}
+        }
 	colnames(X)[1] <- beta.names[1] <- "intercept"			  
 	
     X <- data.matrix(X)
@@ -58,9 +59,9 @@ basad <- function(x = NULL,
     ind = which(abs(B0)> sort(abs(B0))[m+1])
     sighat = sum((summary(lm(Y~0+X[,union(1,ind)]))$residuals)^2)/(n-length(union(1,ind)))
 
+    B0 = rep(0,(p+1))
     Z0 = array(0,(p+1))
     sig = sighat
-    nsplit = 1
 	
 	cat("Algorithms running:",  "\n" )
 
@@ -79,7 +80,6 @@ basad <- function(x = NULL,
     else if( prior.dist == "Laplace"){
         
         s0 = 1/n
-        nu = df
         fvalue = dlaplace(sqrt(2.1*log(p+1)))
         s1  = max(100*s0, pr0*s0/((1 - pr0)*fvalue));
         
@@ -88,14 +88,13 @@ basad <- function(x = NULL,
     else if( prior.dist == "Gauss"){
     
         s0 = 1/n
-        nu = df
         fvalue = dnorm(sqrt(2.1*log(p+1)))
         s1  = max(100*s0, pr0*s0/((1 - pr0)*fvalue));
     
         res <- .Call( 'basadFunctionG', X, Y, Z0, B0, sig, pr, n, p, s0, s1, nburn, niter, nsplit, Fast,  PACKAGE = 'basad')
     }
     else{
-        stop("No such prior type, please choose from 'Gauss', 't', 'Laplace'")
+       stop("No such prior type, please choose from 'Gauss', 't', 'Laplace'")
     }
 
 
@@ -211,7 +210,8 @@ cat("-----------------------------", "\n")
         modelZ = returnZ,
 		B = B,
 		x = X,
-		y = Y
+		y = Y,
+        pr = res$Pr
        )
     
     class(out) <- "basad"

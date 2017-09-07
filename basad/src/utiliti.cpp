@@ -119,7 +119,7 @@ double gamdev(double a, double b, long *idum)// a:alpha,shape parameter; b: beta
   return x;
 }
 
-/* beta generator */
+
 double betadev( double a, double b, long *idum ){
     double gamdev( double a1, double b1, long *idum );
     
@@ -131,6 +131,7 @@ double betadev( double a, double b, long *idum ){
     
     return beta;
 }
+
 
 
 /*truncated norm, N(0,1), truncated at a, larger than a  */
@@ -145,7 +146,9 @@ double tndev(double a, long *idum)
       u=gasdev(idum); if(u>a) flag=0;
     }while(flag);z=u;
   }
-  else if(a>100){cout<<"warning! large in truncated gamma"<<endl;return a;     
+  else if(a>100){
+      //cout<<"warning! large in truncated gamma"<<endl;
+      return a;
   }
   else
   {
@@ -163,17 +166,18 @@ double igasdev(double u, double l, long *idum){
     double gasdev(long *idum);
     double ran1(long *idum);
     
-    double v, y, x, z;
+    double v, y, x, z, res;
     v = gasdev(idum);
     y = v * v;
     x = u + u * u * y /(2 * l) - u * sqrt( 4 * u * l * y + u * u * y * y )/ ( 2 * l );
     z = ran1(idum);
     
     if( z <= (  u/(u+x)  ))
-        return x;
+        res = x;
     else
-        return  (u*u)/x;
-    
+        res = (u*u)/x;
+
+    return (res < 100000)? res:100000
 }
 
 

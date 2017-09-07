@@ -35,6 +35,9 @@ using namespace Eigen;
 using namespace Rcpp;
 
 
+
+
+
 extern "C"{
     void basadTPr(double* X_, double* Y_, double* Z0, double* B0, double* sig_, double* pr_,
                 int* n_, int* p_, double* nu_,double* s0_,double* s1_, int* nburn_, int* niter_,
@@ -60,21 +63,20 @@ extern "C"{
         
         long idum = -time(0);
         
-        int itr, nsplit =*nsplit_,vsize = (p+1)/nsplit;
+        int itr, s, nsplit =*nsplit_, vsize = (p+1)/nsplit, remsizeflag = (p+1)%nsplit, remsize=remsizeflag>0?remsizeflag:1;
         double s0 = *s0_, s1 = *s1_, a, b;
         
         
+        MatrixXd B(niter+nburn, p+1), Z(niter+nburn, p+1), G(p+1, p+1), COV(vsize, vsize), COVsq(vsize, vsize), tempG(vsize, p+1-vsize), COVeg(vsize, vsize), COV2(p+1, p+1), COVeg2(p+1, p+1), COVsq2(p+1, p+1), remCOV(remsize, remsize), remCOVeg(remsize, remsize), remCOVsq(remsize, remsize), remtempG(remsize, nsplit * vsize);
         
-        MatrixXd B(niter+nburn, p+1), Z(niter+nburn, p+1), G(p+1, p+1), COV(vsize, vsize), COVsq(vsize, vsize), tempG(vsize, p+1-vsize), COVeg(vsize, vsize), COV2(p+1, p+1), COVeg2(p+1, p+1), COVsq2(p+1, p+1);
-        
-        VectorXd tmu(p+1), T1(p+1), tempgas2(p+1), tempgas2n(n), delta(n),  prob(p+1), sigma(niter + nburn), vec1(n), vec2(p+1), T1Inver(p+1),  tempDelta(p+1);
-        
+        VectorXd tmu(p+1), T1(p+1), tempgas(vsize), tempgas2(p+1),  tempgas2n(n), delta(n),  prob(p+1), sigma(niter + nburn), vec1(n), vec2(p+1), T1Inver(p+1),  tempDelta(p+1),
+        tempB(vsize), tempB2(p+1-vsize), remtempB2(nsplit * vsize), remtempgas(remsize), remtempB(remsize);
         
         
         //allocation for new faster algorithm
         
-        MatrixXd Phi(n, p + 1), tempMat(p+1, n), tempA(n,n), D(p+1, p+1);
-        VectorXd D_diag(p+1), alpha(n), u(p+1), v(n), w(n), tempB(n);
+        MatrixXd Phi(n, p + 1), tempMat(p+1, n), equaA(n,n), D(p+1, p+1);
+        VectorXd D_diag(p+1), alpha(n), u(p+1), v(n), w(n), equaB(n);
         
         
         //allocation for tPrior
@@ -93,8 +95,12 @@ extern "C"{
         Z(0,0) = 1;
         sigma(0) = sig;
         prV(0) = pr;
-        for( itr = 1; itr < (niter + nburn) ; itr++ )
+        for( itr = 1; itr < (niter + nburn) ; itr++ ){
             sigma(itr) = 1.0;
+            prV(itr) = pr;
+        }
+        
+        
         for( itr = 0; itr < (niter + nburn) ; itr++ )
             for( i = 0; i < p+1; i++ )
                 t(itr, i) = 1.0;
@@ -121,23 +127,100 @@ extern "C"{
                 for( j = 0; j < p+1; j++)
                     T1(j) = 1/( Z(itr-1, j) * s1 * t(itr-1, j) + ( 1 - Z(itr - 1, j) ) * s0 * t(itr-1, j));
                 
-                COV2 = G;
+        
+                if( nsplit > 1){
+                    
+                    for(s=1;s<(nsplit+1);s++){
+                        //cout<<"s: "<<s<<endl;
+                        //for(i=0;i<vsize;i++) svec(i)=(s-1)*vsize +i;
+                        
+                        COV=G.block((s-1)*vsize,(s-1)*vsize,vsize,vsize);
+                        
+                        for(i=0;i<vsize;i++) COV(i,i)+=T1(i+(s-1)*vsize);
+                        SelfAdjointEigenSolver<MatrixXd> eigensolver(COV);
+                        
+                        if (eigensolver.info() != Success) abort();
+                        COVeg=eigensolver.eigenvalues().asDiagonal();
+                        
+                        for(i=0;i<vsize;i++) {
+                            COVeg(i,i)=1/sqrt(eigensolver.eigenvalues()(i));
+                        }
+                        
+                        COVsq = eigensolver.eigenvectors() * COVeg * eigensolver.eigenvectors().transpose();
+                        //B[svec] = COVsq * (COVsq * (tmu[svec] - G[svec, -svec] * B[-svec]) + rnorm(vsize))
+                        
+                        tempG.block(0,0,vsize,(s-1)*vsize)=G.block((s-1)*vsize,0,vsize,(s-1)*vsize);
+                        
+                        tempG.block(0,(s-1)*vsize,vsize,p+1-s*vsize)=G.block((s-1)*vsize,s*vsize,vsize,p+1-s*vsize);
+                        
+                        tempB2.head((s-1)*vsize)=B.row(itr).head((s-1)*vsize);
+                        
+                        tempB2.tail(p+1-s*vsize)=B.row(itr).tail(p+1-s*vsize);
+                        
+                        for(i=0;i<vsize;i++)
+                            tempgas(i)=gasdev(&idum);
+                        
+                        tempB=COVsq * (COVsq * (tmu.segment((s-1)*vsize,vsize) - tempG * tempB2)+ sqrt(sig) * tempgas );
+                        
+                        for(i=0;i<vsize;i++) {
+                            B(itr,(s-1)*vsize +i)= tempB(i);
+                        }
+                    }
+                    if(remsizeflag>0){
+                        
+                        //cout<<"44 "<<endl;
+                        //for(i=0;i<vsize;i++) svec(i)=(s-1)*vsize +i;
+                        
+                        remCOV=G.block(nsplit*vsize,nsplit*vsize,remsize,remsize);
+                        
+                        for(i=0;i<remsize;i++)
+                            remCOV(i,i)+=T1(i+nsplit*vsize);
+                        
+                        SelfAdjointEigenSolver<MatrixXd> eigensolver(remCOV);
+                        
+                        if (eigensolver.info() != Success) abort();
+                        
+                        remCOVeg = eigensolver.eigenvalues().asDiagonal();
+                        
+                        for(i=0;i<remsize;i++){
+                            remCOVeg(i,i)=1/sqrt(eigensolver.eigenvalues()(i));
+                        }
+                        
+                        remCOVsq = eigensolver.eigenvectors() * remCOVeg * eigensolver.eigenvectors().transpose();
+                        
+                        remtempG.block(0,0,remsize,nsplit*vsize)=G.block(nsplit*vsize,0,remsize,nsplit*vsize);//tempG=G[svec,-svec]
+                        
+                        remtempB2.head(nsplit*vsize)=B.row(itr).head(nsplit*vsize);//tempB2=B[-svec]
+                        
+                        for(i=0;i<remsize;i++)
+                            remtempgas(i)=gasdev(&idum);
+                        
+                        remtempB=remCOVsq * (remCOVsq * (tmu.tail(remsize) - remtempG * remtempB2) +  sqrt(sig) * remtempgas);
+                        for(i=0;i<remsize;i++) {
+                            B(itr,nsplit*vsize +i)= remtempB(i);
+                        }
+                    } // end for the remaining part if remsize>0
+                } //end of split sampling
+                else{
+                    COV2 = G;
+                    
+                    for(i=0;i<p+1;i++)
+                        COV2(i,i) += T1(i);
                 
-                for(i=0;i<p+1;i++)
-                    COV2(i,i) += T1(i);
+                    SelfAdjointEigenSolver<MatrixXd> eigensolver2(COV2);
                 
-                SelfAdjointEigenSolver<MatrixXd> eigensolver2(COV2);
+                    if (eigensolver2.info() != Success) abort();
+                        COVeg2 = eigensolver2.eigenvalues().asDiagonal();
+                    for( i = 0; i < p + 1; i++ )
+                        COVeg2(i,i)=1/sqrt(eigensolver2.eigenvalues()(i));
                 
-                if (eigensolver2.info() != Success) abort();
-                COVeg2 = eigensolver2.eigenvalues().asDiagonal();
-                for( i = 0; i < p + 1; i++ )
-                    COVeg2(i,i)=1/sqrt(eigensolver2.eigenvalues()(i));
+                    COVsq2.noalias() = eigensolver2.eigenvectors() * COVeg2 * eigensolver2.eigenvectors().transpose();
+                    for( i = 0; i < p + 1; i++ )
+                        tempgas2(i) = gasdev(&idum);
                 
-                COVsq2 = eigensolver2.eigenvectors() * COVeg2 * eigensolver2.eigenvectors().transpose();
-                for( i = 0; i < p + 1; i++ )
-                    tempgas2(i) = gasdev(&idum);
-                
-                B.row(itr) = COVsq2 * COVsq2 * tmu + sqrt(sig) * COVsq2 *tempgas2;
+                    B.row(itr).noalias() = COVsq2 * COVsq2 * tmu;
+                    B.row(itr).noalias() +=sqrt(sig) * COVsq2 *tempgas2;
+                }
             }
             else{  // The Faster way
                 
@@ -164,16 +247,15 @@ extern "C"{
                     tempgas2n(i) = 1.00;
                 
                 tempMat.noalias() = D * Phi.transpose();
-                tempA = tempgas2n.asDiagonal();
-                tempA.noalias() += Phi * tempMat;
-                tempB = alpha - v;
+                equaA = tempgas2n.asDiagonal();
+                equaA.noalias() += Phi * tempMat;
+                equaB = alpha - v;
                 
-                w = tempA.ldlt().solve( tempB );
+                w = equaA.ldlt().solve( equaB );
                 B.row(itr) = u;
                 B.row(itr).noalias() += tempMat * w;
 
             }
-            
             
             
             
@@ -200,7 +282,6 @@ extern "C"{
             
             //updating Tau
             
-            
             for( j = 0; j < p + 1; j++ ){
                 T1(j) =  ( Z(itr, j) * s1  + ( 1 - Z(itr, j) ) * s0  );
                 
@@ -220,11 +301,10 @@ extern "C"{
             }
             
             if( itr % 400 == 0)
-                cout << itr << endl;
+                Rprintf( "%d\n", itr);
             
         }
         
-        //cout << *Fast << endl;
         
         //Return output value
         for( i=0;i<(nburn+niter);i++){
@@ -274,7 +354,6 @@ RcppExport SEXP basadFunctionT(SEXP X, SEXP Y, SEXP Z0, SEXP B0, SEXP sig, SEXP 
 	for( i = 0; i < nn; i++ )
 		YYY[i] = YY(i);
   
-  
 	double *ZZZ = new double[pp+1];
 	for( i = 0; i < pp + 1; i++ )
 		ZZZ[i] = ZZ(i);
@@ -291,35 +370,29 @@ RcppExport SEXP basadFunctionT(SEXP X, SEXP Y, SEXP Z0, SEXP B0, SEXP sig, SEXP 
     if( ppr < 0 ){
         PrFlag = 1;
         ppr = 0.1;
-        cout << "prior probability that a coefficient is nonzero is estimated by Gibbs sampling" << endl;
+        Rprintf( "prior probability that a coefficient is nonzero is estimated by Gibbs sampling\n" );
     }
     else
         PrFlag = 0;
 
     basadTPr( XXX, YYY, ZZZ, BBB, &sighat, &ppr, &nn, &pp, &nunu, &ss0, &ss1, &nnburn, &nniter, &nnsplit, outZZ, outBB, outSig, outPr, &fast, &PrFlag);
  
-  
-	int nnrow;
-	nnrow = nnburn + nniter;
-	int nncol;
-	nncol = pp + 1;
     
-   // cout << nnrow << nncol << endl;
+    
+    Rcpp::NumericMatrix realOutB( nnburn + nniter , pp + 1 );
+    Rcpp::NumericMatrix realOutZ( nnburn + nniter , pp + 1 );
+    Rcpp::NumericVector realOutSig( nnburn + nniter );
+    Rcpp::NumericVector realOutPr(  nnburn + nniter );
+    
   
-    Rcpp::NumericMatrix realOutB( nnrow , nncol );
-    Rcpp::NumericMatrix realOutZ( nnrow , nncol );
-
   
-  
-	for( int k = 0; k < nnrow; k++ ){
-		for( int h = 0; h < nncol; h++ ){
+	for( int k = 0; k < ( nnburn + nniter ); k++ ){
+		for( int h = 0; h < (pp + 1); h++ ){
 			realOutB(k, h) = outBB[ h *(nnburn + nniter) + k];
 			realOutZ(k, h) = outZZ[ h *(nnburn + nniter) + k];
 		}
 	}
-   
-    Rcpp::NumericVector realOutSig( nnburn + nniter );
-    Rcpp::NumericVector realOutPr(  nnburn + nniter );
+
    
     for( int k = 0; k < nnburn + nniter; k++ ){
         realOutSig(k) = outSig[k];
@@ -337,11 +410,9 @@ RcppExport SEXP basadFunctionT(SEXP X, SEXP Y, SEXP Z0, SEXP B0, SEXP sig, SEXP 
   
 	return List::create(
 		Named("B") = realOutB,
-		Named("Z") = realOutZ
-		//Named("Sig") = realOutSig
-	);
-   
-  
-  //return wrap(10);
+        Named("Z") = realOutZ,
+        Named("Pr") = realOutPr
+    );
+
 }
 

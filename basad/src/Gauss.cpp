@@ -11,8 +11,6 @@
 #include "utiliti.h"
 
 
-
-
 #define IM1 2147483563
 #define IM2 2147483399
 #define AM (1.0/IM1)
@@ -37,7 +35,6 @@ using namespace Eigen;
 using namespace Rcpp;
 
 
-
 //basad main function with guassian prior
 extern "C"{
     void basadGPr(double* X_, double* Y_, double* Z0, double* B0, double* sig_, double* pr_,
@@ -52,7 +49,7 @@ extern "C"{
         VectorXd Y(n);
         VectorXd prV(niter + nburn);
         
-        int i, j, k, tempZ, sizecheck = 0, tempZnew;
+        int i, j;
         
         for (i=0;i<n;i++){
             for (j=1;j<p+1;j++){
@@ -64,8 +61,8 @@ extern "C"{
         
         long idum = -time(0);
         
-        int size, itr, s, nsplit =*nsplit_, vsize = (p+1)/nsplit, remsizeflag = (p+1)%nsplit, remsize=remsizeflag>0?remsizeflag:1;
-        double temp, temp2, s0 = *s0_, s1 = *s1_, a, b;
+        int itr, s, nsplit =*nsplit_, vsize = (p+1)/nsplit, remsizeflag = (p+1)%nsplit, remsize=remsizeflag>0?remsizeflag:1;
+        double s0 = *s0_, s1 = *s1_, a, b;
         
         
         MatrixXd B(niter+nburn, p+1), Z(niter+nburn, p+1), G(p+1, p+1), COV(vsize, vsize), COVsq(vsize, vsize), tempG(vsize, p+1-vsize), COVeg(vsize, vsize), COV2(p+1, p+1), COVeg2(p+1, p+1), COVsq2(p+1, p+1), remCOV(remsize, remsize), remCOVeg(remsize, remsize), remCOVsq(remsize, remsize), remtempG(remsize, nsplit * vsize);
@@ -78,7 +75,6 @@ extern "C"{
         MatrixXd Phi(n, p + 1), tempMat(p+1, n), equaA(n,n), D(p+1, p+1);
         VectorXd D_diag(p+1), alpha(n), u(p+1), v(n), w(n), equaB(n);
         
-        //MatrixXd
         
         //Initial Values
         
@@ -90,13 +86,14 @@ extern "C"{
         B(0,0) = 0;
         Z(0,0) = 1;
         sigma(0) = sig;
+        prV(0) = pr;
         
         for( itr = 1; itr < (niter + nburn) ; itr++ ){
             sigma(itr) = 1;
             prV(itr) = pr;
         }
         
-        //Gibss
+        /**************************************Gibss Procedure*********************************/
         
         G = X.transpose() * X;
         tmu = X.transpose() * Y;
@@ -123,10 +120,8 @@ extern "C"{
                 
                 if(nsplit>1)
                 {
-                    //cout<<"22"<<endl;
+                  
                     for(s=1;s<(nsplit+1);s++){
-                        //cout<<"s: "<<s<<endl;
-                        //for(i=0;i<vsize;i++) svec(i)=(s-1)*vsize +i;
                         
                         COV=G.block((s-1)*vsize,(s-1)*vsize,vsize,vsize);
                         
@@ -141,7 +136,6 @@ extern "C"{
                         }
                         
                         COVsq = eigensolver.eigenvectors() * COVeg * eigensolver.eigenvectors().transpose();
-                        //B[svec] = COVsq * (COVsq * (tmu[svec] - G[svec, -svec] * B[-svec]) + rnorm(vsize))
                         
                         tempG.block(0,0,vsize,(s-1)*vsize)=G.block((s-1)*vsize,0,vsize,(s-1)*vsize);
                         
@@ -159,13 +153,9 @@ extern "C"{
                         for(i=0;i<vsize;i++) {
                             B(itr,(s-1)*vsize +i)= tempB(i);
                         }
-                        
-                        
-                    } //cout<<"33 "<<endl;
+                    }
+                    
                     if(remsizeflag>0){
-                        
-                        //cout<<"44 "<<endl;
-                        //for(i=0;i<vsize;i++) svec(i)=(s-1)*vsize +i;
                         
                         remCOV=G.block(nsplit*vsize,nsplit*vsize,remsize,remsize);
                         
@@ -218,6 +208,7 @@ extern "C"{
                     
                     B.row(itr) = COVsq2 * COVsq2 * tmu + sqrt(sig) * COVsq2 *tempgas2;
                 }
+                
             }
             else{
                 
@@ -261,7 +252,7 @@ extern "C"{
             }
             
             
-            //updating Z
+            /***************************updating Z******************************/
             Z(itr,0)=1;
             for(i=1;i<p+1;i++){
                 
@@ -272,7 +263,7 @@ extern "C"{
                 Z(itr,i) = (ran1(&idum) < prob(i))? 1:0;
             }
             
-            //updating Sigma
+            /***************************updating Sigma***************************/
             
             for( j = 0; j < p + 1; j++ )
                 T1(j) =  1/ ( Z(itr, j) * s1 + ( 1 - Z(itr, j) ) * s0 );
@@ -286,15 +277,18 @@ extern "C"{
             
             sigma(itr) = sig;
             
-            // updating pr
+            /****************************updating pr*****************************/
             
             if( *PrFlag == 1){
                 double a1 = beta1 + Z.row(itr).sum();
                 double b1 = beta2 + p + 1 - Z.row(itr).sum();
                 prV(itr) = betadev(a1, b1, &idum);
+               // printf("Pr\n");
             }
+            
+            
             if( itr % 500 == 0)
-                printf("%d\n", itr);
+                printf("%d...", itr);
             
         }
         
@@ -333,8 +327,6 @@ RcppExport SEXP basadFunctionG(SEXP X, SEXP Y, SEXP Z0, SEXP B0, SEXP sig, SEXP 
   int i,j, PrFlag;
   
   
-  
-  
   double *XXX = new double[nn * (pp+1)];
   for(i =0; i < nn; i++ ){
     for(j = 0; j < (pp + 1); j++ ){
@@ -359,47 +351,39 @@ RcppExport SEXP basadFunctionG(SEXP X, SEXP Y, SEXP Z0, SEXP B0, SEXP sig, SEXP 
     BBB[i] = BB(i);
     
 
-    double *outZZ = new double[  (nnburn + nniter) * (pp + 1) ];
-    double *outBB = new double[  (nnburn + nniter) * (pp + 1) ];
-	double *outPr = new double[  (nnburn + nniter) ];
+  double *outZZ = new double[  (nnburn + nniter) * (pp + 1) ];
+  double *outBB = new double[  (nnburn + nniter) * (pp + 1) ];
+  double *outPr = new double[  (nnburn + nniter) ];
   
 
-    if( ppr < 0  ){
-        Rprintf( "prior probability that a coefficient is nonzero is estimated by Gibbs sampling\n" );
-        PrFlag = 1;
-        ppr = 0.1;
-    }
-    else
-        PrFlag = 0;
-
-    basadGPr( XXX, YYY, ZZZ, BBB, &sighat, &ppr, &nn, &pp, &ss0, &ss1, &nnburn, &nniter, &nnsplit, outZZ, outBB, outPr, &fast, &PrFlag);
-  
-  
-    int nnrow;
-    nnrow = nnburn + nniter;
-    int nncol;
-    nncol = pp + 1;
+  if( ppr < 0  ){
+    Rprintf( "prior probability that a coefficient is nonzero is estimated by Gibbs sampling\n" );
+    PrFlag = 1;
+    ppr = 0.1;
+  }
+  else
+    PrFlag = 0;
     
+    
+  basadGPr( XXX, YYY, ZZZ, BBB, &sighat, &ppr, &nn, &pp, &ss0, &ss1, &nnburn, &nniter, &nnsplit, outZZ, outBB, outPr, &fast, &PrFlag);
   
-    Rcpp::NumericMatrix realOutB( nnrow , nncol );
-    Rcpp::NumericMatrix realOutZ( nnrow , nncol );
 
+  Rcpp::NumericMatrix realOutB( nnburn + nniter , pp + 1 );
+  Rcpp::NumericMatrix realOutZ( nnburn + nniter , pp + 1 );
+  Rcpp::NumericVector realOutPr( nnburn + nniter );
   
   
-  for( int k = 0; k < nnrow; k++ ){
-      for( int h = 0; h < nncol; h++ ){
+  for( int k = 0; k < (nnburn + nniter); k++ ){
+      for( int h = 0; h < (pp + 1); h++ ){
           realOutB(k, h) = outBB[ h *(nnburn + nniter) + k];
           realOutZ(k, h) = outZZ[ h *(nnburn + nniter) + k];
-   }
+      }
   }
    
-   
-    Rcpp::NumericVector realOutPr( nnburn + nniter );
-    for( int k = 0; k < nnburn + nniter; k++ )
-        realOutPr(k) = outPr[k];
+
+  for( int k = 0; k < nnburn + nniter; k++ )
+          realOutPr(k) = outPr[k];
     
-  
-  
   
   NumericMatrix testOutX( nn, (pp+1) );
   
@@ -424,8 +408,6 @@ RcppExport SEXP basadFunctionG(SEXP X, SEXP Y, SEXP Z0, SEXP B0, SEXP sig, SEXP 
     Named("Pr") = realOutPr
   );
    
-  
-  //return wrap(10);
 }
 
 
