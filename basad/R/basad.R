@@ -10,7 +10,7 @@ basad <- function(x = NULL,
                   df = 5,
                   nburn = 500,
                   niter = 3000,
-                  Fast = TRUE,
+                  alternative  = FALSE,
                   verbose = FALSE,
                   nsplit = 10,
                   prior.dist = "Gauss",
@@ -75,7 +75,7 @@ basad <- function(x = NULL,
         s1  = max(100*s0, pr0*s0/((1 - pr0)*fvalue));
         
         
-		res <- .Call( 'basadFunctionT', X, Y, Z0, B0, sig, pr, n, p, nu, s0, s1, nburn, niter, nsplit, Fast, PACKAGE = 'basad' )
+		res <- .Call( 'basadFunctionT', X, Y, Z0, B0, sig, pr, n, p, nu, s0, s1, nburn, niter, nsplit, alternative, PACKAGE = 'basad' )
     }
     else if( prior.dist == "Laplace"){
         
@@ -83,7 +83,7 @@ basad <- function(x = NULL,
         fvalue = dlaplace(sqrt(2.1*log(p+1)))
         s1  = max(100*s0, pr0*s0/((1 - pr0)*fvalue));
         
-	    res <- .Call( 'basadFunctionL', X, Y, Z0, B0, sig, pr, n, p, lambda = 1, s0, s1, nburn, niter, nsplit, Fast, PACKAGE = 'basad' )
+	    res <- .Call( 'basadFunctionL', X, Y, Z0, B0, sig, pr, n, p, lambda = 1, s0, s1, nburn, niter, nsplit, alternative, PACKAGE = 'basad' )
     }
     else if( prior.dist == "Gauss"){
     
@@ -91,7 +91,7 @@ basad <- function(x = NULL,
         fvalue = dnorm(sqrt(2.1*log(p+1)))
         s1  = max(100*s0, pr0*s0/((1 - pr0)*fvalue));
     
-        res <- .Call( 'basadFunctionG', X, Y, Z0, B0, sig, pr, n, p, s0, s1, nburn, niter, nsplit, Fast,  PACKAGE = 'basad')
+        res <- .Call( 'basadFunctionG', X, Y, Z0, B0, sig, pr, n, p, s0, s1, nburn, niter, nsplit, alternative,  PACKAGE = 'basad')
     }
     else{
        stop("No such prior type, please choose from 'Gauss', 't', 'Laplace'")
@@ -170,29 +170,29 @@ basad <- function(x = NULL,
 ###---------------------------
 
 
-catList <- list(
+verboseList <- list(
 
     c(n),
     c(p+1),
     c(nburn),
     c(niter),
-	c(Fast),
+	c(alternative),
     c(select.cri)
     
 )
 
 if( verbose ){
-cat("-----------------------------", "\n")
-cat("Sample size                    :", catList[[1]], "\n" )
-cat("No. predictors                 :", catList[[2]], "\n" )
-cat("Burn-in periods                :", catList[[3]], "\n" )
-cat("Sampled periods                :", catList[[4]], "\n" )
-cat("Fast Sampling                  :", catList[[5]], "\n" )
-cat("Model selection criteria       :", catList[[6]], "\n" )
+cat("--------------------------------", "\n")
+cat("Sample size                    :", verboseList[[1]], "\n" )
+cat("No. predictors                 :", verboseList[[2]], "\n" )
+cat("Burn-in periods                :", verboseList[[3]], "\n" )
+cat("Sampled periods                :", verboseList[[4]], "\n" )
+cat("Alternative Sampling           :", verboseList[[5]], "\n" )
+cat("Model selection criteria       :", verboseList[[6]], "\n" )
 cat("\n\n")
 cat("---> Top variables:\n")
 print(round(basad.sum, 3))
-cat("-----------------------------", "\n")
+cat("--------------------------------", "\n")
 }
 
 ###---------------------------
@@ -202,7 +202,7 @@ cat("-----------------------------", "\n")
 ###---------------------------
     out <- list(
         basad.summary = basad.sum,
-		catList = catList,
+		verbose = verboseList,
         n = n,
         p = p+1,
 		posteriorZ = Z,

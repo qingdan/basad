@@ -177,7 +177,7 @@ double igasdev(double u, double l, long *idum){
     else
         res = (u*u)/x;
 
-    return (res < 100000)? res:100000
+    return (res < 100000)? res:100000;
 }
 
 

@@ -64,7 +64,6 @@ extern "C"{
         int itr, s, nsplit =*nsplit_, vsize = (p+1)/nsplit, remsizeflag = (p+1)%nsplit, remsize=remsizeflag>0?remsizeflag:1;
         double s0 = *s0_, s1 = *s1_, a, b;
         
-        
         MatrixXd B(niter+nburn, p+1), Z(niter+nburn, p+1), G(p+1, p+1), COV(vsize, vsize), COVsq(vsize, vsize), tempG(vsize, p+1-vsize), COVeg(vsize, vsize), COV2(p+1, p+1), COVeg2(p+1, p+1), COVsq2(p+1, p+1), remCOV(remsize, remsize), remCOVeg(remsize, remsize), remCOVsq(remsize, remsize), remtempG(remsize, nsplit * vsize);
         
         VectorXd tmu(p+1), T1(p+1), tempgas2(p+1), tempgas(vsize), tempgas2n(n), delta(n),  prob(p+1), sigma(niter + nburn), vec1(n), vec2(p+1), T1Inver(p+1),  tempDelta(p+1),
@@ -93,11 +92,14 @@ extern "C"{
             prV(itr) = pr;
         }
         
-        /**************************************Gibss Procedure*********************************/
-        
         G = X.transpose() * X;
         tmu = X.transpose() * Y;
         
+        ////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////
+        //			The Gibbs sampling procedure		              //
+        ////////////////////////////////////////////////////////////////
+        ////////////////////////////////////////////////////////////////
         
         
         for( itr = 1; itr <(nburn + niter); itr++ ){
@@ -108,9 +110,8 @@ extern "C"{
             else
                 prTemp = pr0;
             
-            
-            
-            //updating B
+        
+            //***************             updating B              ***************//
             
             if( *Fast == 0){
                 
@@ -126,14 +127,14 @@ extern "C"{
                         COV=G.block((s-1)*vsize,(s-1)*vsize,vsize,vsize);
                         
                         for(i=0;i<vsize;i++) COV(i,i)+=T1(i+(s-1)*vsize);
-                        SelfAdjointEigenSolver<MatrixXd> eigensolver(COV);
+                            SelfAdjointEigenSolver<MatrixXd> eigensolver(COV);
                         
-                        if (eigensolver.info() != Success) abort();
-                        COVeg=eigensolver.eigenvalues().asDiagonal();
+                        if(eigensolver.info() != Success) abort();
+                            COVeg=eigensolver.eigenvalues().asDiagonal();
                         
-                        for(i=0;i<vsize;i++) {
+                        for(i=0;i<vsize;i++)
                             COVeg(i,i)=1/sqrt(eigensolver.eigenvalues()(i));
-                        }
+                        
                         
                         COVsq = eigensolver.eigenvectors() * COVeg * eigensolver.eigenvectors().transpose();
                         
@@ -150,9 +151,10 @@ extern "C"{
                         
                         tempB=COVsq * (COVsq * (tmu.segment((s-1)*vsize,vsize) - tempG * tempB2)+ sqrt(sig) * tempgas );
                         
-                        for(i=0;i<vsize;i++) {
+                        for(i=0;i<vsize;i++)
                             B(itr,(s-1)*vsize +i)= tempB(i);
-                        }
+                        
+                        
                     }
                     
                     if(remsizeflag>0){
@@ -182,14 +184,13 @@ extern "C"{
                             remtempgas(i)=gasdev(&idum);
                         
                         remtempB=remCOVsq * (remCOVsq * (tmu.tail(remsize) - remtempG * remtempB2) +  sqrt(sig) * remtempgas);
+                        
                         for(i=0;i<remsize;i++) {
                             B(itr,nsplit*vsize +i)= remtempB(i);
                         }
                     } // end for the remaining part if remsize>0
-                }//end if
+                } //end of split sampling
                 else{
-                    
-                    
                     COV2 = G;
                     
                     for(i=0;i<p+1;i++)
@@ -198,7 +199,7 @@ extern "C"{
                     SelfAdjointEigenSolver<MatrixXd> eigensolver2(COV2);
                     
                     if (eigensolver2.info() != Success) abort();
-                    COVeg2 = eigensolver2.eigenvalues().asDiagonal();
+                        COVeg2 = eigensolver2.eigenvalues().asDiagonal();
                     for( i = 0; i < p + 1; i++ )
                         COVeg2(i,i)=1/sqrt(eigensolver2.eigenvalues()(i));
                     
@@ -206,13 +207,12 @@ extern "C"{
                     for( i = 0; i < p + 1; i++ )
                         tempgas2(i) = gasdev(&idum);
                     
-                    B.row(itr) = COVsq2 * COVsq2 * tmu + sqrt(sig) * COVsq2 *tempgas2;
+                    B.row(itr).noalias() = COVsq2 * COVsq2 * tmu;
+                    B.row(itr).noalias() += sqrt(sig) * COVsq2 *tempgas2;
                 }
                 
             }
-            else{
-                
-                //a faster way to update the B
+            else{   // The faster way updating B from Bhattacharya's
                 
                 
                 B.row(itr) = B.row(itr - 1);
@@ -222,7 +222,6 @@ extern "C"{
                 D_diag =  T1 * sig;
                 Phi = X/sqrt(sig);
                 alpha = Y/sqrt(sig);
-                
                 
                 //sample u
                 for( i = 0; i < p+1; i++ )
@@ -252,7 +251,7 @@ extern "C"{
             }
             
             
-            /***************************updating Z******************************/
+            //***************             updating Z              ***************//
             Z(itr,0)=1;
             for(i=1;i<p+1;i++){
                 
@@ -263,7 +262,7 @@ extern "C"{
                 Z(itr,i) = (ran1(&idum) < prob(i))? 1:0;
             }
             
-            /***************************updating Sigma***************************/
+            //****************           updating Sigma           ***************//
             
             for( j = 0; j < p + 1; j++ )
                 T1(j) =  1/ ( Z(itr, j) * s1 + ( 1 - Z(itr, j) ) * s0 );
@@ -272,23 +271,21 @@ extern "C"{
             a = P1 + n * 0.5 + p * 0.5;
             b = P2 + 0.5 * vec1.dot(vec1) + 0.5 * B.row(itr) * T1.asDiagonal() * B.row(itr).transpose();
             
-            
             sig  = 1/gamdev(a, b, &idum);
-            
             sigma(itr) = sig;
             
-            /****************************updating pr*****************************/
+            
+            //****************            updating pr              **************//
             
             if( *PrFlag == 1){
                 double a1 = beta1 + Z.row(itr).sum();
                 double b1 = beta2 + p + 1 - Z.row(itr).sum();
                 prV(itr) = betadev(a1, b1, &idum);
-               // printf("Pr\n");
             }
             
             
             if( itr % 500 == 0)
-                printf("%d...", itr);
+                Rprintf("%d...", itr);
             
         }
         
@@ -344,7 +341,6 @@ RcppExport SEXP basadFunctionG(SEXP X, SEXP Y, SEXP Z0, SEXP B0, SEXP sig, SEXP 
   for( i = 0; i < pp + 1; i++ )
     ZZZ[i] = ZZ(i);
     
-  
   
   double *BBB = new double[pp+1];
   for( i = 0; i < pp + 1; i++ )

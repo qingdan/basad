@@ -118,9 +118,8 @@ extern "C"{
                 prTemp = prV(itr - 1);
             else
                 prTemp = pr0;
-            //updating B
             
-            //original way
+            //***************             updating B              ***************//
             if( *Fast == 0 ){
                 
                 B.row(itr) = B.row(itr - 1);
@@ -131,23 +130,20 @@ extern "C"{
                 if( nsplit > 1){
                     
                     for(s=1;s<(nsplit+1);s++){
-                        //cout<<"s: "<<s<<endl;
-                        //for(i=0;i<vsize;i++) svec(i)=(s-1)*vsize +i;
                         
                         COV=G.block((s-1)*vsize,(s-1)*vsize,vsize,vsize);
                         
                         for(i=0;i<vsize;i++) COV(i,i)+=T1(i+(s-1)*vsize);
-                        SelfAdjointEigenSolver<MatrixXd> eigensolver(COV);
+                            SelfAdjointEigenSolver<MatrixXd> eigensolver(COV);
                         
-                        if (eigensolver.info() != Success) abort();
-                        COVeg=eigensolver.eigenvalues().asDiagonal();
+                        if(eigensolver.info() != Success) abort();
+                            COVeg=eigensolver.eigenvalues().asDiagonal();
                         
-                        for(i=0;i<vsize;i++) {
+                        for(i=0;i<vsize;i++)
                             COVeg(i,i)=1/sqrt(eigensolver.eigenvalues()(i));
-                        }
+                        
                         
                         COVsq = eigensolver.eigenvectors() * COVeg * eigensolver.eigenvectors().transpose();
-                        //B[svec] = COVsq * (COVsq * (tmu[svec] - G[svec, -svec] * B[-svec]) + rnorm(vsize))
                         
                         tempG.block(0,0,vsize,(s-1)*vsize)=G.block((s-1)*vsize,0,vsize,(s-1)*vsize);
                         
@@ -162,14 +158,12 @@ extern "C"{
                         
                         tempB=COVsq * (COVsq * (tmu.segment((s-1)*vsize,vsize) - tempG * tempB2)+ sqrt(sig) * tempgas );
                         
-                        for(i=0;i<vsize;i++) {
+                        for(i=0;i<vsize;i++)
                             B(itr,(s-1)*vsize +i)= tempB(i);
-                        }
+                        
                     }
                     if(remsizeflag>0){
                         
-                        //cout<<"44 "<<endl;
-                        //for(i=0;i<vsize;i++) svec(i)=(s-1)*vsize +i;
                         
                         remCOV=G.block(nsplit*vsize,nsplit*vsize,remsize,remsize);
                         
@@ -196,6 +190,7 @@ extern "C"{
                             remtempgas(i)=gasdev(&idum);
                         
                         remtempB=remCOVsq * (remCOVsq * (tmu.tail(remsize) - remtempG * remtempB2) +  sqrt(sig) * remtempgas);
+                        
                         for(i=0;i<remsize;i++) {
                             B(itr,nsplit*vsize +i)= remtempB(i);
                         }
@@ -219,10 +214,10 @@ extern "C"{
                         tempgas2(i) = gasdev(&idum);
                 
                     B.row(itr).noalias() = COVsq2 * COVsq2 * tmu;
-                    B.row(itr).noalias() +=sqrt(sig) * COVsq2 *tempgas2;
+                    B.row(itr).noalias() += sqrt(sig) * COVsq2 *tempgas2;
                 }
             }
-            else{  // The Faster way
+            else{   // The faster way updating B from Bhattacharya's
                 
                 B.row(itr) = B.row(itr - 1);
                 for( j = 0; j < p+1; j++)
@@ -259,16 +254,17 @@ extern "C"{
             
             
             
-            //updating Z
+            //***************             updating Z              ***************//
             Z(itr,0)=1;
             for(i=1;i<p+1;i++){
                 double s1sq = sig * s1 * t(itr-1, i);
                 double s0sq = sig * s0 * t(itr-1, i);
+                
                 prob(i)=prTemp* mydnorm(B(itr,i), (double)0, s1sq)/( prTemp* mydnorm(B(itr,i), (double)0, s1sq) + (1-prTemp)* mydnorm(B(itr,i), (double)0, s0sq ));
                 Z(itr,i) = (ran1(&idum) < prob(i))? 1:0;
             }
             
-            //updating Sigma
+            //****************           updating Sigma           ***************//
             
             for( j = 0; j < p + 1; j++ )
                 T1(j) =  1/ ( Z(itr, j) * s1 * t(itr-1, j) + ( 1 - Z(itr, j) ) * s0 * t(itr-1, j) );
@@ -280,8 +276,7 @@ extern "C"{
             sig  = 1/gamdev(a, b, &idum);
             sigma(itr) = sig;
             
-            //updating Tau
-            
+            //****************           updating Tau            ***************//
             for( j = 0; j < p + 1; j++ ){
                 T1(j) =  ( Z(itr, j) * s1  + ( 1 - Z(itr, j) ) * s0  );
                 
@@ -293,7 +288,7 @@ extern "C"{
             
    
             
-            //updating Pr
+            //****************            updating Pr              **************//
             if( *PrFlag == 1){
                 double a1 = beta1 + Z.row(itr).sum();
                 double b1 = beta2 + p + 1 - Z.row(itr).sum();
@@ -301,7 +296,7 @@ extern "C"{
             }
             
             if( itr % 400 == 0)
-                Rprintf( "%d\n", itr);
+                Rprintf( "%d...", itr);
             
         }
         

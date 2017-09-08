@@ -136,8 +136,6 @@ extern "C"{
                 if( nsplit > 1){
                     
                     for(s=1;s<(nsplit+1);s++){
-                        //cout<<"s: "<<s<<endl;
-                        //for(i=0;i<vsize;i++) svec(i)=(s-1)*vsize +i;
                         
                         COV=G.block((s-1)*vsize,(s-1)*vsize,vsize,vsize);
                         
@@ -152,7 +150,6 @@ extern "C"{
                         }
                         
                         COVsq = eigensolver.eigenvectors() * COVeg * eigensolver.eigenvectors().transpose();
-                        //B[svec] = COVsq * (COVsq * (tmu[svec] - G[svec, -svec] * B[-svec]) + rnorm(vsize))
                         
                         tempG.block(0,0,vsize,(s-1)*vsize)=G.block((s-1)*vsize,0,vsize,(s-1)*vsize);
                         
@@ -172,9 +169,6 @@ extern "C"{
                         }
                     }
                     if(remsizeflag>0){
-                        
-                        //cout<<"44 "<<endl;
-                        //for(i=0;i<vsize;i++) svec(i)=(s-1)*vsize +i;
                         
                         remCOV=G.block(nsplit*vsize,nsplit*vsize,remsize,remsize);
                         
@@ -226,9 +220,8 @@ extern "C"{
                     B.row(itr) = COVsq2 * COVsq2 * tmu + sqrt(sig) * COVsq2 *tempgas2;
                 }
             }
-            else{
-                
-                // The Faster way
+            else{   // The faster way updating B from Bhattacharya's
+
                 
                 B.row(itr) = B.row(itr - 1);
                 for( j = 0; j < p+1; j++)
@@ -287,7 +280,7 @@ extern "C"{
             sigma(itr) = sig;
             
             
-            //updating Tau
+            //****************           updating Tau            ***************//
             for( j = 0; j < p + 1; j++ ){
                 T1(j) =  ( Z(itr, j) * s1  + ( 1 - Z(itr, j) ) * s0  );
                 
@@ -297,15 +290,15 @@ extern "C"{
                 t(itr, j) = 1/igasdev(a, b, &idum);
             }
             
-            //updating Pr
+            //****************            updating Pr              **************//
             if( *PrFlag == 1){
                 double a1 = beta1 + Z.row(itr).sum();
                 double b1 = beta2 + p + 1 - Z.row(itr).sum();
                 prV(itr) = betadev(a1, b1, &idum);
             }
             
-            if( itr % 200 == 0)
-                cout << itr << endl;
+            if( itr % 500 == 0)
+                Rprintf("%d...", itr);
             
         }
         

@@ -13,7 +13,7 @@ print.basad <- function(x, ...)
      stop("This function only works for objects of class 'basad'")
 
 #### extract summary data
-  catList = x$catList
+  verboseList = x$verbose
   
 #### --------------------------------------------------------------
 ###	Terminal Output
@@ -23,12 +23,12 @@ print.basad <- function(x, ...)
 ### basad output
     
 cat("-----------------------------", "\n")
-cat("Sample size                    :", catList[[1]], "\n" )
-cat("No. predictors                 :", catList[[2]], "\n" )
-cat("Burn-in periods                :", catList[[3]], "\n" )
-cat("Sampled periods                :", catList[[4]], "\n" )
-cat("Fast Sampling                  :", catList[[5]], "\n" )
-cat("Model selection criteria       :", catList[[6]], "\n")
+cat("Sample size                    :", verboseList[[1]], "\n" )
+cat("No. predictors                 :", verboseList[[2]], "\n" )
+cat("Burn-in periods                :", verboseList[[3]], "\n" )
+cat("Sampled periods                :", verboseList[[4]], "\n" )
+cat("Alternative Sampling                  :", verboseList[[5]], "\n" )
+cat("Model selection criteria       :", verboseList[[6]], "\n")
 cat("\n\n")
 cat("---> Top variables:\n")
 print(round(x$basad.sum, 3))
