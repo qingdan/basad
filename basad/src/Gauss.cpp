@@ -66,8 +66,7 @@ extern "C"{
         
         MatrixXd B(niter+nburn, p+1), Z(niter+nburn, p+1), G(p+1, p+1), COV(vsize, vsize), COVsq(vsize, vsize), tempG(vsize, p+1-vsize), COVeg(vsize, vsize), COV2(p+1, p+1), COVeg2(p+1, p+1), COVsq2(p+1, p+1), remCOV(remsize, remsize), remCOVeg(remsize, remsize), remCOVsq(remsize, remsize), remtempG(remsize, nsplit * vsize);
         
-        VectorXd tmu(p+1), T1(p+1), tempgas2(p+1), tempgas(vsize), tempgas2n(n), delta(n),  prob(p+1), sigma(niter + nburn), vec1(n), vec2(p+1), T1Inver(p+1),  tempDelta(p+1),
-        tempB(vsize), tempB2(p+1-vsize), remtempB2(nsplit * vsize), remtempgas(remsize), remtempB(remsize);
+        VectorXd tmu(p+1), T1(p+1), tempgas2(p+1), tempgas(vsize), tempgas2n(n), delta(n),  prob(p+1), sigma(niter + nburn), vec1(n), vec2(p+1), T1Inver(p+1),  tempDelta(p+1), tempB(vsize), tempB2(p+1-vsize), remtempB2(nsplit * vsize), remtempgas(remsize), remtempB(remsize);
         
         
         //allocation for new faster algorithm
@@ -119,8 +118,7 @@ extern "C"{
                 for( j = 0; j < p+1; j++)
                     T1(j) = 1/( Z(itr-1, j) * s1 + ( 1 - Z(itr - 1, j) ) * s0 );
                 
-                if(nsplit>1)
-                {
+                if(nsplit>1){
                   
                     for(s=1;s<(nsplit+1);s++){
                         
@@ -129,27 +127,32 @@ extern "C"{
                         for(i=0;i<vsize;i++) COV(i,i)+=T1(i+(s-1)*vsize);
                             SelfAdjointEigenSolver<MatrixXd> eigensolver(COV);
                         
-                        if(eigensolver.info() != Success) abort();
-                            COVeg=eigensolver.eigenvalues().asDiagonal();
+                        COVeg=eigensolver.eigenvalues().asDiagonal();
                         
                         for(i=0;i<vsize;i++)
                             COVeg(i,i)=1/sqrt(eigensolver.eigenvalues()(i));
                         
-                        
-                        COVsq = eigensolver.eigenvectors() * COVeg * eigensolver.eigenvectors().transpose();
+                        COVsq.noalias() = eigensolver.eigenvectors() * COVeg * eigensolver.eigenvectors().transpose();
                         
                         tempG.block(0,0,vsize,(s-1)*vsize)=G.block((s-1)*vsize,0,vsize,(s-1)*vsize);
-                        
                         tempG.block(0,(s-1)*vsize,vsize,p+1-s*vsize)=G.block((s-1)*vsize,s*vsize,vsize,p+1-s*vsize);
-                        
                         tempB2.head((s-1)*vsize)=B.row(itr).head((s-1)*vsize);
-                        
                         tempB2.tail(p+1-s*vsize)=B.row(itr).tail(p+1-s*vsize);
                         
                         for(i=0;i<vsize;i++)
                             tempgas(i)=gasdev(&idum);
                         
-                        tempB=COVsq * (COVsq * (tmu.segment((s-1)*vsize,vsize) - tempG * tempB2)+ sqrt(sig) * tempgas );
+                        //tempB = tmu.segment((s-1)*vsize, vsize);
+                        //tempB.noalias() -= tempG * tempB2;
+                        
+                        //tempgas = sqrt(sig) * tempgas;
+                        //tempgas.noalias() += COVsq * tempB;
+                        
+                        //tempB.noalias() = COVsq * tempgas;
+                        
+                        
+                        tempB=COVsq * (COVsq * ( tmu.segment((s-1)*vsize, vsize) - tempG * tempB2 )+ sqrt(sig) * tempgas );
+                        
                         
                         for(i=0;i<vsize;i++)
                             B(itr,(s-1)*vsize +i)= tempB(i);
@@ -166,7 +169,7 @@ extern "C"{
                         
                         SelfAdjointEigenSolver<MatrixXd> eigensolver(remCOV);
                         
-                        if (eigensolver.info() != Success) abort();
+                        //if (eigensolver.info() != Success) abort();
                         
                         remCOVeg = eigensolver.eigenvalues().asDiagonal();
                         
@@ -174,10 +177,8 @@ extern "C"{
                             remCOVeg(i,i)=1/sqrt(eigensolver.eigenvalues()(i));
                         }
                         
-                        remCOVsq = eigensolver.eigenvectors() * remCOVeg * eigensolver.eigenvectors().transpose();
-                        
+                        remCOVsq.noalias() = eigensolver.eigenvectors() * remCOVeg * eigensolver.eigenvectors().transpose();
                         remtempG.block(0,0,remsize,nsplit*vsize)=G.block(nsplit*vsize,0,remsize,nsplit*vsize);//tempG=G[svec,-svec]
-                        
                         remtempB2.head(nsplit*vsize)=B.row(itr).head(nsplit*vsize);//tempB2=B[-svec]
                         
                         for(i=0;i<remsize;i++)
@@ -198,8 +199,8 @@ extern "C"{
                     
                     SelfAdjointEigenSolver<MatrixXd> eigensolver2(COV2);
                     
-                    if (eigensolver2.info() != Success) abort();
-                        COVeg2 = eigensolver2.eigenvalues().asDiagonal();
+                    //if (eigensolver2.info() != Success) abort();
+                    COVeg2 = eigensolver2.eigenvalues().asDiagonal();
                     for( i = 0; i < p + 1; i++ )
                         COVeg2(i,i)=1/sqrt(eigensolver2.eigenvalues()(i));
                     
@@ -288,7 +289,7 @@ extern "C"{
                 Rprintf("%d...", itr);
             
         }
-        
+        Rprintf("\n");
         
         
         for( i=0;i<(nburn+niter);i++){

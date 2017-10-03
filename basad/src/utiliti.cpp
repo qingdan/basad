@@ -166,6 +166,8 @@ double igasdev(double u, double l, long *idum){
     double gasdev(long *idum);
     double ran1(long *idum);
     
+    u = ( u < 100000)? u:100000;
+    
     double v, y, x, z, res;
     v = gasdev(idum);
     y = v * v;
@@ -177,7 +179,7 @@ double igasdev(double u, double l, long *idum){
     else
         res = (u*u)/x;
 
-    return (res < 100000)? res:100000;
+    return (res < 10000)? res:10000;
 }
 
 

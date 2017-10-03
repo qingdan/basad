@@ -1,5 +1,4 @@
 useDynLib(basad, .registration = TRUE)
-import(RcppEigen)
 importFrom(Rcpp, evalCpp)
 importFrom(rmutil, dlaplace)
 importFrom("stats", "dnorm", "dt", "lm", "qnorm", "uniroot")

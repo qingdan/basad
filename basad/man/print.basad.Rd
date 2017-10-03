@@ -20,18 +20,7 @@ Narisetty, N. N., & He, X. (2014). Bayesian variable selection with shrinking an
     \code{spikeslab}
 }
 \author{
-
-Qinyan Xiang (\email{qyxiang16@gmail.com})
-
-Naveen Narisetty ( \email{naveen@illinois.edu} )
-
-}
-\examples{
-\dontrun{
-
-res <- spikeslab(x = X, y = Y)
-print(res)
-
-}
+    Qingyan Xiang (\email{qyxiang@illinois.edu})
+    Naveen Narisetty ( \email{naveen@illinois.edu} )
 }
 \keyword{print}
