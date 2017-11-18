@@ -1,8 +1,8 @@
 \name{predict.basad}
 \alias{predict.basad}
-\title{basad prediction}
+\title{Basad prediction}
 \description{
-    Predict the reponse values of test data using basad.
+    Predict the response values of test data using basad.
 }
 \usage{
     \method{predict}{basad}(object, testx = NULL, ...)
@@ -13,23 +13,21 @@
 	\item{...}{Further arguments passed to or from other methods.}
 
 }
-\details{
- 	Compute the predicted value using a test data set.
-}
 \value{
-	A vector of fitted values for basad estimated beta values.
+	A vector of fitted values for estimated response values.
 }
 \references{
     Narisetty, N. N., & He, X. (2014). Bayesian variable selection with shrinking and diffusing priors. \emph{The Annals of Statistics}, 42(2), 789-817.
 }
 \author{
-Qinyan Xiang (\email{qxiang@illinois.edu})
-Naveen Narisetty ( \email{naveen@illinois.edu} )
+Qingyan Xiang (\email{qxiang@illinois.edu})
+
+Naveen Narisetty (\email{naveen@illinois.edu})
 }
 \examples{
-\dontrun{
+\donttest{
 #-----------------------------------------------------------
-Generate Data: The simulated high dimensional data
+#Generate Data: The simulated high dimensional data
 #-----------------------------------------------------------
 
 n =  100; p = 499; nz = 5
@@ -45,18 +43,17 @@ covr=rbind( cbind(covr1,covr2), cbind(t(covr2),covr3) )
 covE = eigen(covr)
 covsq = covE$vectors \%*\% diag(sqrt(covE$values)) \%*\% t(covE$vectors)
 
-Xs = matrix( rnorm(n*p), nrow = n); Xn = covsq%*% t(Xs)
+Xs = matrix(rnorm(n*p), nrow = n); Xn = covsq \%*\% t(Xs)
 X = cbind(array(1, n), t(Xn))
 Y = X \%*\% Bc + rnorm(n); X <- X[,2:ncol(X)]
 
 
 #-----------------------------------------------------------
-Run the analysis and predict
+#Run the algorithm and then predict
 #-----------------------------------------------------------
 
 obj <- basad( x = X, y = Y)
-predict( obj, testx = x )
-
+predict( obj, testx = X )
 
 }
 

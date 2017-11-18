@@ -8,13 +8,16 @@ basad <- function(x = NULL,
                   y = NULL,
                   K = -1,
                   df = 5,
-                  nburn = 800,
-                  niter = 1500,
+                  nburn = 1000,
+                  niter = 1000,
                   alternative  = FALSE,
                   verbose = FALSE,
-                  nsplit = 10,
+                  nsplit = 20,
+                  tau0 = NULL,
+                  tau1 = NULL,
                   prior.dist = "Gauss",
-                  select.cri = "median"){
+                  select.cri = "median",
+                  BIC.maxsize = 20){
 
 ###--------------------------------
 ###Preproccessing
@@ -81,33 +84,56 @@ basad <- function(x = NULL,
     B0 = rep(0,(p+1))
     Z0 = array(0,(p+1))
     sig = sighat
-	
+    
+    ##########make a proper nsplit in low dimensional cases
+    if( p > 30 )
+        nsplit = nsplit
+    else
+        nsplit = 1
+        
+    if( nsplit > p )
+        stop("Number of splits can not exceed dimensions")
+        
 	cat("Algorithms running:",  "\n" )
 ###---------------------------------
 ###RUN THE CORE
 ###---------------------------------
 ###The tau0 coefficient
+
+    if( !is.null(tau0) )
+        s0 = tau0
+    else
         s0 = 1/n
 
     if( prior.dist == "t"){
         
         nu = df
         fvalue = dt(sqrt(2.1*log(p+1)), df = nu)
-        s1  = max(100*s0, pr0*s0/((1 - pr0)*fvalue));
+        
+        if( !is.null(tau1) )
+            s1 = tau1
+        else
+            s1  = max(100*s0, pr0*s0/((1 - pr0)*fvalue))
         
 		res <- .Call( 'basadFuncScale', X, Y, Z0, B0, sig, pr, n, p, nu, s0, s1, nburn, niter, nsplit, alternative, priorType = 0, PACKAGE = 'basad' )
     }
     else if( prior.dist == "Laplace"){
     
         fvalue = dlaplace(sqrt(2.1*log(p+1)))
-        s1  = max(100*s0, pr0*s0/((1 - pr0)*fvalue));
+        if( !is.null(tau1)  )
+            s1 = tau1
+        else
+            s1  = max(100*s0, pr0*s0/((1 - pr0)*fvalue));
         
 	    res <- .Call( 'basadFuncScale', X, Y, Z0, B0, sig, pr, n, p, lambda = 1, s0, s1, nburn, niter, nsplit, alternative, priorType = 1, PACKAGE = 'basad' )
     }
     else if( prior.dist == "Gauss"){
     
         fvalue = dnorm(sqrt(2.1*log(p+1)))
-        s1  = max(100*s0, pr0*s0/((1 - pr0)*fvalue));
+        if( !is.null(tau1)   )
+            s1 = tau1
+        else
+            s1  = max(100*s0, pr0*s0/((1 - pr0)*fvalue));
         
         res <- .Call( 'basadFunctionG', X, Y, Z0, B0, sig, pr, n, p, s0, s1, nburn, niter, nsplit, alternative,  PACKAGE = 'basad')
     }
@@ -118,6 +144,9 @@ basad <- function(x = NULL,
 ###--------------------------------
 ###SUMMARY
 ###--------------------------------
+    allZ <- res$Z
+    allB <- res$B
+
     ZZ <- res$Z[(nburn+1):(nburn+niter), ]
     BB <- res$B[(nburn+1):(nburn+niter), ]
     
@@ -129,9 +158,16 @@ basad <- function(x = NULL,
     
     modelIdx <- c()
     ####return the results if selection criteria is BIC
+    
+    if( p > BIC.maxsize )
+        BICsize = BIC.maxsize
+    else
+        BICsize = p
+    
     if( select.cri == "BIC" ){
-        bic <- numeric(25)
-        for( i in 1:25 ){
+        print( BICsize )
+        bic <- numeric(BICsize)
+        for( i in 1:BICsize ){
             idx <- Zsort$ix[ 1:i ]
             Bbic <- numeric(p + 1)
             Bbic[idx] <- B[idx]
@@ -188,7 +224,7 @@ verboseList <- list(
 if( verbose ){
 cat("-----------------------------------", "\n")
 cat("Sample size                      :", verboseList[[1]], "\n" )
-cat("No. predictors                   :", verboseList[[2]], "\n" )
+cat("Dimension                        :", verboseList[[2]], "\n" )
 cat("Burn-in length                   :", verboseList[[3]], "\n" )
 cat("Iteration length                 :", verboseList[[4]], "\n" )
 cat("Block updating split sizes       :", verboseList[[5]], "\n" )
@@ -210,10 +246,11 @@ cat("-----------------------------------", "\n")
 		verbose = verboseList,
 		posteriorZ = Z,
         modelSize = length(modelIdx) - 1 ,
-        modelIdx = modelIdx,
+        model.index = modelIdx,
         modelZ = modelZ,
-		B = B,
-        pr = res$Pr,
+		est.B = B,
+        allB = allB,
+        allZ = allZ,
 		x = X,
 		y = Y
        )

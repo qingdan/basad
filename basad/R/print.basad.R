@@ -22,14 +22,14 @@ print.basad <- function(x, ...){
     
 cat("----------------------------------", "\n")
 cat("Sample size                      :", verboseList[[1]], "\n" )
-cat("No. predictors                   :", verboseList[[2]], "\n" )
+cat("Dimension                        :", verboseList[[2]], "\n" )
 cat("Burn-in length                   :", verboseList[[3]], "\n" )
 cat("Iteration length                 :", verboseList[[4]], "\n" )
 cat("Block updating split sizes       :", verboseList[[5]], "\n" )
 cat("Alternative fast sampling        :", verboseList[[6]], "\n" )
 cat("Model selection criteria         :", verboseList[[7]], "\n" )
 cat("\n\n")
-cat("-----> Top variables:\n")
+cat("-----> Selected variables:\n")
 print(round( x$select.var, 4 ))
 cat("----------------------------------", "\n")
 

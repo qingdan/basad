@@ -1,8 +1,7 @@
+//  The scale mixture priors cases for basad
 //
-//
-//  Scale mixture pirors for coeifficnets
-//
-//
+//  Created by Qingyan Xiang on 10/19/17.
+//  Copyright © 2017 Qingyan Xiang. All rights reserved.
 
 #include <iostream>
 #include <stdio.h>

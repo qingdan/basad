@@ -1,8 +1,7 @@
+//  The Gaussian priors cases for basad
 //
-//
-//  Created by Qingyan Xiang on 4/19/17.
+//  Created by Qingyan Xiang on 10/19/17.
 //  Copyright © 2017 Qingyan Xiang. All rights reserved.
-//
 
 
 #include <math.h>
