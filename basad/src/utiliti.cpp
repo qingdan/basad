@@ -3,6 +3,7 @@
 //  Created by Qingyan Xiang on 4/19/17.
 //  Copyright © 2017 Qingyan Xiang. All rights reserved.
 //
+#define STRICT_R_HEADERS
 #include <Rcpp.h>
 #include <math.h>
 #include <RcppEigen.h>
@@ -33,7 +34,7 @@ using namespace Rcpp;
 
 double mydnorm (double x, double mu, double sigmasq)
 { double pdf;
-  pdf=(1/sqrt(2*PI*sigmasq))*exp(-(x-mu)*(x-mu)/(2*sigmasq));
+  pdf=(1/sqrt(2*M_PI*sigmasq))*exp(-(x-mu)*(x-mu)/(2*sigmasq));
   return(pdf);
 }
 
