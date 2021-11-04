@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <cstdlib>
 #include <math.h>
+#define STRICT_R_HEADERS
 #include <Rcpp.h>
 #include <RcppEigen.h>
 #include "utiliti.h"

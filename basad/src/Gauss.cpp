@@ -3,8 +3,8 @@
 //  Created by Qingyan Xiang on 10/19/17.
 //  Copyright © 2017 Qingyan Xiang. All rights reserved.
 
-
 #include <math.h>
+#define STRICT_R_HEADERS
 #include <Rcpp.h>
 #include <RcppEigen.h>
 #include "utiliti.h"
