@@ -1,10 +1,12 @@
-//
+//  Utility functions for basad
 //
 //  Created by Qingyan Xiang on 4/19/17.
-//  Copyright © 2017 Qingyan Xiang. All rights reserved.
+//  Updated on Nov 2021
+//  Copyright © 2021 Qingyan Xiang. All rights reserved.
 //
-#include <Rcpp.h>
 #include <math.h>
+#define STRICT_R_HEADERS
+#include <Rcpp.h>
 #include <RcppEigen.h>
 #include "utiliti.h"
 
@@ -33,7 +35,7 @@ using namespace Rcpp;
 
 double mydnorm (double x, double mu, double sigmasq)
 { double pdf;
-  pdf=(1/sqrt(2*PI*sigmasq))*exp(-(x-mu)*(x-mu)/(2*sigmasq));
+  pdf=(1/sqrt(2*M_PI*sigmasq))*exp(-(x-mu)*(x-mu)/(2*sigmasq));
   return(pdf);
 }
 

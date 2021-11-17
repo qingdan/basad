@@ -5,30 +5,32 @@
     This function performs the Bayesian variable selection procedure with shrinking and diffusing priors via Gibbs sampling. Three different prior options placed on the coefficients are provided: Gaussian, Student's t, Laplace. The posterior estimates of coefficients are returned and the final model is selected either by using the "BIC" criterion or the median probability model.
 }
 \usage{
-basad( x = NULL, y = NULL, K = -1, df = 5, nburn = 1000, niter = 1000,
+basad(x = NULL, y = NULL, K = -1, df = 5, nburn = 1000, niter = 1000,
         alternative = FALSE, verbose = FALSE, nsplit = 20, tau0 = NULL, tau1 = NULL,
-        prior.dist = "Gauss", select.cri = "median", BIC.maxsize = 20)
+        prior.dist = "Gauss", select.cri = "median", BIC.maxsize = 20,
+        standardize = TRUE, intercept = TRUE)
 }
 \arguments{
-\item{x}{The matrix or data frame of covariates. }
-\item{y}{The response variables. }
-\item{K}{An initial value for the numbers of active covariates in the model. This value is related to the prior probability that a covariate is nonzero. If \code{K} is not specified greater than 3, this prior probability will be estimated by a Beta prior using Gibbs sampling (see details below).  }
-\item{df}{The degrees of freedom of t prior when \code{prior.dist == "t"}. }
-\item{nburn}{The number of iterations for burn-in. }
-\item{niter}{The number of iterations for estimation. }
-\item{alternative}{If \code{TRUE}, an alternative sampling scheme from Bhattacharya will be used which can accelerate the speed of the algorithm for very large p. However, when using block updating (by setting \code{nsplit} to be greater than 1) this alternative sampling will not be invoked.  }
-\item{verbose}{If \code{TRUE}, verbose output is sent to the terminal. }
-\item{nsplit}{Numbers of splits for the block updating scheme. }
-\item{tau0}{ The scale of the prior distribution for inactive coefficients (see details below). }
-\item{tau1}{ The scale of the prior distribution for active coefficients (see details below). }
-\item{prior.dist}{Choice of the base distribution for spike and slab priors. If \code{prior.dist="t"}, the algorithm will place Student's t prior for regression coefficients. If \code{prior.dist="Laplace"}, the algorithm will place Laplace prior. Otherwise, it will place the default Gaussian priors. }
-\item{select.cri}{Model selection criteria. If \code{select.cri="median"}, the algorithm will use the median probability model to select the active variables. If \code{ select.cri="BIC"}, the algorithm will use the BIC criteria to select the active variables. }
-\item{BIC.maxsize}{ The amount of the variables that are chosen to apply BIC criteria based on the ranking of their marginal posterior probabilities. If the input sample size is less than the default value 20, all variables will be considered when applying BIC. }
+  \item{x}{The matrix or data frame of covariates. }
+  \item{y}{The response variables. }
+  \item{K}{An initial value for the number of active covariates in the model. This value is related to the prior probability that a covariate is nonzero. If \code{K} is not specified greater than 3, this prior probability will be estimated by a Beta prior using Gibbs sampling (see details below).  }
+  \item{df}{The degrees of freedom of t prior when \code{prior.dist == "t"}. }
+  \item{nburn}{The number of iterations for burn-in. }
+  \item{niter}{The number of iterations for estimation. }
+  \item{alternative}{If \code{TRUE}, an alternative sampling scheme from Bhattacharya will be used which can accelerate the speed of the algorithm for very large p. However, when using block updating (by setting \code{nsplit} to be greater than 1) this alternative sampling will not be invoked.  }
+  \item{verbose}{If \code{TRUE}, verbose output is sent to the terminal. }
+  \item{nsplit}{Numbers of splits for the block updating scheme. }
+  \item{tau0}{ The scale of the prior distribution for inactive coefficients (see details below). }
+  \item{tau1}{ The scale of the prior distribution for active coefficients (see details below). }
+  \item{prior.dist}{Choice of the base distribution for spike and slab priors. If \code{prior.dist="t"}, the algorithm will place Student's t prior for regression coefficients. If \code{prior.dist="Laplace"}, the algorithm will place Laplace prior. Otherwise, it will place the default Gaussian priors. }
+  \item{select.cri}{Model selection criterion. If \code{select.cri="median"}, the algorithm will use the median probability model to select the active variables. If \code{ select.cri="BIC"}, the algorithm will use the BIC criterion to select the active variables. }
+  \item{BIC.maxsize}{ The maximum number of variables that are chosen to apply BIC criterion based on the ranking of their marginal posterior probabilities. If the dimension is less than the default value of 20, all the variables will be considered to apply BIC. }
+  \item{standardize}{Option for standardization of the covariates. Default is \code{standardize = TRUE}.}
+  \item{intercept}{Option to include an intercept in the model. Default is \code{TRUE}.}
 }
 
 
 \value{
-
 An object of class \code{basad} with the following components:
 \item{all.var}{ Summary object for all the variables. }
 \item{select.var}{ Summary object for the selected variables. }
@@ -40,8 +42,8 @@ An object of class \code{basad} with the following components:
 \item{est.B}{ Estimated coefficient values from the posterior distribution through Gibbs sampling. }
 \item{allB}{ A matrix of all sampled coefficient values along the entire chain. Each row represents the sampled values under each iteration.}
 \item{allZ}{ A matrix of all sampled posterior probabilities for the latent variable Z along the entire chain. Each row represents the sampled values under each iteration. }
-\item{x}{ Standardized x-matrix. }
-\item{y}{ Standardized y vector. }
+\item{x}{ x-matrix used for the algorithm.  }
+\item{y}{ y vector used for the algorithm. }
 }
 \details{
 
@@ -62,7 +64,7 @@ Where \eqn{\nu} is the degrees of freedom
 3. The Laplace prior case:
 \deqn{  \beta | ( Z = k, \sigma^2 )  = \frac{1}{2 \tau_k^2 \sigma^2 } \exp \Big(  -\frac{  |\beta|  }{  \tau_{k}^2 \sigma^2  }  \Big) }
 
-The \eqn{\tau_k} is the scale for the prior distribution. If user did not set a specific value, the prior scales are specified as follows:
+The \eqn{\tau_k} is the scale for the prior distribution. If users did not set a specific value, the prior scales are specified as follows:
 \deqn{
 \tau_{0}^2 = \frac{1}{n} a_\tau , \,  \tau_{1}^2 = \max\Big( 100 \tau_{0}^2, \frac{ \tau_{0}  p_n }{ (1 - p_n) \rho  } \Big),
 }
@@ -89,76 +91,68 @@ Barbieri, M. M., & Berger, J. O. (2004). Optimal predictive model selection. \em
 #-----------------------------------------------------------
 #Generate Data: The simulated low dimensional data
 #-----------------------------------------------------------
-
 n =  100; p = 99; nz = 5
 
-rho1=0.25;rho2=0.25;rho3=0.25  ### correlations
-Bc = c( 0,seq(0.6,3,length.out=nz), array(0, p-nz))
+rho1=0.25; rho2=0.25; rho3=0.25  ### correlations
+Bc = c(0, seq(0.6, 3, length.out = nz), array(0, p - nz))
 
-covr1=(1- rho1)*diag(nz) +  array(rho1,c(nz,nz))
-covr3=(1- rho3)*diag(p-nz) +  array(rho3,c(p-nz,p-nz))
-covr2=array(rho2,c(nz,p-nz))
-covr=rbind( cbind(covr1,covr2), cbind(t(covr2),covr3) )
+covr1 = (1 - rho1) * diag(nz) +  array(rho1, c(nz, nz))
+covr3 = (1 - rho3) * diag(p - nz) +  array(rho3, c(p - nz, p - nz))
+covr2 = array(rho2, c(nz, p - nz))
+covr = rbind(cbind(covr1, covr2), cbind(t(covr2), covr3))
 
 covE = eigen(covr)
-covsq = covE$vectors \%*\% diag( sqrt(covE$values) ) \%*\% t(covE$vectors)
+covsq = covE$vectors \%*\% diag(sqrt(covE$values)) \%*\% t(covE$vectors)
 
-Xs = matrix( rnorm(n*p), nrow = n); Xn = covsq \%*\% t(Xs)
+Xs = matrix(rnorm(n * p), nrow = n); Xn = covsq \%*\% t(Xs)
 X = cbind(array(1, n), t(Xn))
-Y = X \%*\% Bc + rnorm(n); X <- X[,2:ncol(X)]
+Y = X \%*\% Bc + rnorm(n); X <- X[, 2:ncol(X)]
 
 
 #-----------------------------------------------------------
 #Example 1: Run the default setting of the Guassian priors
 #-----------------------------------------------------------
-
-obj <- basad( x = X, y = Y)
-print( obj )
+obj <- basad(x = X, y = Y)
+print(obj)
 }
 \donttest{
 
 #-----------------------------------------------------------
 #Generate Data: The simulated high dimensional data
 #-----------------------------------------------------------
-
 n =  100; p = 499; nz = 5
 
-rho1=0.25;rho2=0.25;rho3=0.25  ### correlations
-Bc = c( 0,seq(0.6,3,length.out=nz), array(0, p-nz))
+rho1=0.25; rho2=0.25; rho3=0.25  ### correlations
+Bc = c(0, seq(0.6, 3, length.out = nz), array(0, p - nz))
 
-covr1=(1- rho1)*diag(nz) +  array(rho1,c(nz,nz))
-covr3=(1- rho3)*diag(p-nz) +  array(rho3,c(p-nz,p-nz))
-covr2=array(rho2,c(nz,p-nz))
-covr=rbind( cbind(covr1,covr2), cbind(t(covr2),covr3) )
+covr1 = (1 - rho1) * diag(nz) +  array(rho1, c(nz, nz))
+covr3 = (1 - rho3) * diag(p - nz) +  array(rho3, c(p - nz, p - nz))
+covr2 = array(rho2, c(nz, p - nz))
+covr = rbind(cbind(covr1, covr2), cbind(t(covr2), covr3))
 
 covE = eigen(covr)
-covsq = covE$vectors \%*\% diag( sqrt(covE$values) ) \%*\% t(covE$vectors)
+covsq = covE$vectors \%*\% diag(sqrt(covE$values)) \%*\% t(covE$vectors)
 
-Xs = matrix( rnorm(n*p), nrow = n); Xn = covsq \%*\% t(Xs)
+Xs = matrix(rnorm(n * p), nrow = n); Xn = covsq \%*\% t(Xs)
 X = cbind(array(1, n), t(Xn))
-Y = X \%*\% Bc + rnorm(n); X <- X[,2:ncol(X)]
+Y = X \%*\% Bc + rnorm(n); X <- X[, 2:ncol(X)]
 
 
 #-----------------------------------------------------------
 #Example 1: Run the default setting of the Guassian priors
 #-----------------------------------------------------------
-
-obj <- basad( x = X, y = Y)
-print( obj )
+obj <- basad(x = X, y = Y)
+print(obj)
 
 #-----------------------------------------------------------
-#Example 2: Use different priors and slection criteria
+#Example 2: Use different priors and slection criterion
 #-----------------------------------------------------------
-
-obj <- basad( x = X, y = Y, prior.dist = "t", select.cri = "BIC")
-print( obj )
+obj <- basad(x = X, y = Y, prior.dist = "t", select.cri = "BIC")
+print(obj)
 }
-
-
-
 }
 \author{
-Qingyan Xiang (\email{qxiang@illinois.edu})
+Qingyan Xiang (\email{qyxiang@bu.edu})
 
 Naveen Narisetty (\email{naveen@illinois.edu})
 }

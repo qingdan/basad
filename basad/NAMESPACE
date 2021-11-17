@@ -2,10 +2,11 @@ useDynLib(basad, .registration = TRUE)
 importFrom(Rcpp, evalCpp)
 importFrom(rmutil, dlaplace)
 importFrom("stats", "dnorm", "dt", "lm", "qnorm", "uniroot")
+importFrom("stats", "lm.fit")
 
-export(basad,
-       print.basad,
-       predict.basad) 
+export(basad) 
 
 S3method(print, basad)
 S3method(predict, basad)
+S3method(summary, basad)
+S3method(coef, basad)
